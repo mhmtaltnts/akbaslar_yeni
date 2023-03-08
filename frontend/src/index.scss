@@ -245,10 +245,13 @@
 
     .footer_left{
       flex: 1;
-      p{
-        font-size: 1rem;
-        color: var(--primary-dark);
-        font-style: normal;
+      a {
+        text-decoration: none;
+        p{
+          font-size: 1rem;
+          color: var(--primary-dark);
+          font-style: normal;
+        }
       }
     } 
     .footer_middle{
@@ -307,11 +310,14 @@
     .footer_left{
       display: flex;
       justify-content: flex-start;
-      p{
-        font-family: 'Montserrat', sans-serif!important;
-        font-style: normal!important;
-        font-size: 1rem;
-        text-align: center;
+      a {
+        text-decoration: none;
+        p{
+          font-family: 'Montserrat', sans-serif!important;
+          font-style: normal!important;
+          font-size: 1rem;
+          text-align: center;
+        }
       }
     } 
     .footer_middle{
@@ -942,12 +948,16 @@ option {
       align-content: center;
   
       .footer_left{
-        p{
-          font-family: 'Montserrat', sans-serif!important;
-          font-style: normal!important;
-          font-size: 0.9rem;
-          text-align: center;
+        a {
+          text-decoration: none;
+          p{
+            font-family: 'Montserrat', sans-serif!important;
+            font-style: normal!important;
+            font-size: 0.9rem;
+            text-align: center;
+          }
         }
+        
       } 
       .footer_middle{
         display: flex;
@@ -985,12 +995,16 @@ option {
       align-content: center;
       gap: 1rem;
       .footer_left{
-        p{
-          font-family: 'Montserrat', sans-serif!important;
-          font-style: normal!important;
-          font-size: 0.9rem;
-          text-align: center;
+        a {
+          text-decoration: none;
+          p{
+            font-family: 'Montserrat', sans-serif!important;
+            font-style: normal!important;
+            font-size: 0.9rem;
+            text-align: center;
+          }
         }
+        
       } 
       .footer_middle{
         display: flex;

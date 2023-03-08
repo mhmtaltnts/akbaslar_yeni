@@ -41,11 +41,11 @@ const Login = () => {
             navigate('/dash')
         } catch (err) {
             if (!err.status) {
-                setErrMsg('No Server Response');
+                setErrMsg('Server cevap vermiyor');
             } else if (err.status === 400) {
-                setErrMsg('Missing Username or Password');
+                setErrMsg('Kullanıcı adı ve şifre hatası');
             } else if (err.status === 401) {
-                setErrMsg('Unauthorized');
+                setErrMsg('Yetkiniz Yok');
             } else {
                 setErrMsg(err.data?.message);
             }
