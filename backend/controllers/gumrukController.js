@@ -7,10 +7,10 @@ const User = require('../models/User')
 // @route PATCH /notes
 // @access Private
 const gumrukNote = async (req, res) => {
-    const { id, user, gumruk} = req.body
+    const { id, user, gumrukBilgi, gumrukBilgiTarihi} = req.body
 
     // Confirm data
-    if (!id || !user || !gumruk ) {
+    if (!id || !user || !gumrukBilgi ) {
         return res.status(400).json({ message: 'Tüm alanları doldurun' })
     }
 
@@ -22,9 +22,9 @@ const gumrukNote = async (req, res) => {
     }
 
 
-    note.gumrukGirisiYapan = user
-    note.gumruk = gumruk
-    note.gumrukGirisTarihi = Date.now()
+    note.gumrukYapan = user
+    note.gumrukBilgi = gumrukBilgi
+    note.gumrukBilgiTarihi = gumrukBilgiTarihi
     
 
     const updatedNote = await note.save()

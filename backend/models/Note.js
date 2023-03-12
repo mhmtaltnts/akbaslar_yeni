@@ -18,7 +18,7 @@ const noteSchema = new mongoose.Schema(
         mal: {
             type:String
         },
-        gumruk: {
+        gumrukBilgi: {
             type: String,
             
         },
@@ -29,7 +29,7 @@ const noteSchema = new mongoose.Schema(
             type: String,
         },
                 
-        gumrukGirisiYapan: {
+        gumrukYapan: {
             type: String,
             
         },
@@ -37,26 +37,22 @@ const noteSchema = new mongoose.Schema(
         cikisYapan: {
             type: String,
         },        
-                 
-        guncelleyen: {
+        guncellemeYapan: {
             type: String,
         },
         girisTarihi:{
             type: Date
         },
-        gumrukGirisTarihi: {
+        gumrukBilgiTarihi: {
             type: Date,
         },
         cikisTarihi: {
             type: Date,
         },
-        degismeTarihi: {
+        guncellemeTarihi: {
             type: Date,
         },
     },
-    {
-        timestamps: true
-    }
 )
 
 

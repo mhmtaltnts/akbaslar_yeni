@@ -22,7 +22,7 @@ const getAllNotes = async (req, res) => {
 // @route POST /notes
 // @access Private
 const createNewNote = async (req, res) => {
-    const { user, getiren, dorse, firma, mal } = req.body
+    const { user, getiren, dorse, firma, mal, girisTarihi } = req.body
 
     /* // Confirm data
     if (!user || !getiren || !dorse || !firma) {
@@ -37,7 +37,7 @@ const createNewNote = async (req, res) => {
     if (duplicate) {
         return res.status(409).json({ message: "Bu dorse plakasıyla daha önce giriş yapıldı, yinelemeye izin verilmiyor." });
     } 
-    const note = await Note.create({ girisYapan: user, getiren, dorse, firma, mal, girisTarihi: Date.now() })
+    const note = await Note.create({ girisYapan: user, getiren, dorse, firma, mal, girisTarihi })
 
     if (note) { // Created 
         return res.status(201).json({ message: 'Yeni kayıt oluşturuldu' })
@@ -51,7 +51,7 @@ const createNewNote = async (req, res) => {
 // @route PATCH /notes
 // @access Private
 const updateNote = async (req, res) => {
-    const { id, user, getiren, dorse, firma, mal, gumruk} = req.body
+    const { id, user, getiren, dorse, firma, mal, girisTarihi, guncellemeTarihi} = req.body
     
     // Confirm data
     /* if (!id || !user || !getiren || !dorse || !firma || !mal) {
@@ -65,13 +65,13 @@ const updateNote = async (req, res) => {
         return res.status(400).json({ message: 'Kayıt bulunamadı' })
     }
 
-    note.guncelleyen = user
-    note.degismeTarihi = Date.now()
+    note.guncellemeYapan = user
+    note.girisTarihi = girisTarihi
+    note.guncellemeTarihi = guncellemeTarihi
     note.getiren = getiren
     note.dorse = dorse
     note.firma = firma
     note.mal = mal
-    note.gumruk = gumruk
     
 
     const updatedNote = await note.save()

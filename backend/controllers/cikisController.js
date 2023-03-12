@@ -7,7 +7,7 @@ const User = require('../models/User')
 // @route PATCH /notes
 // @access Private
 const cikisNote = async (req, res) => {
-    const { id, user, goturen} = req.body
+    const { id, user, goturen, cikisTarihi} = req.body
 
     // Confirm data
     if (!id || !user || !goturen ) {
@@ -24,7 +24,7 @@ const cikisNote = async (req, res) => {
 
     note.cikisYapan = user
     note.goturen = goturen
-    note.cikisTarihi = Date.now()
+    note.cikisTarihi = cikisTarihi
     
 
     const updatedNote = await note.save()
