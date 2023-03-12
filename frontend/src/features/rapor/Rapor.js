@@ -1,25 +1,23 @@
 import {useState} from "react"
-import { useGetRaporQuery } from "../../app/api/notesApiSlice"
+import { useGetRaporQuery, useDeleteNoteMutation } from "../../app/api/notesApiSlice"
 import useTitle from "../../hooks/useTitle"
 import PulseLoader from 'react-spinners/PulseLoader'
 import SearchBar from "../../components/SearchBar/SearchBar"
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faAnglesLeft, faAnglesRight } from '@fortawesome/free-solid-svg-icons'
+import { faAnglesLeft, faAnglesRight, faTrashCan } from '@fortawesome/free-solid-svg-icons'
 import { useNavigate } from "react-router-dom"
 import { useDispatch, useSelector } from 'react-redux'
 import { setPage } from '../../app/appStore/pageSlice'
 import { selectCurrentPage } from "../../app/appStore/pageSlice"
-
+import useAuth from '../../hooks/useAuth'
+import moment from "moment"
 
 const Rapor = () => {
     useTitle('Kayıt Listesi')
-    
-    /* const { isManager, isAdmin, status } = useAuth() */
     const page = useSelector(selectCurrentPage)
     const dispatch = useDispatch()
-    console.log(page)
-    /* const { username, isManager, isAdmin } = useAuth() */
     const [search, setSearch] = useState("")
+    const { isManager, isAdmin} = useAuth()
 
     const {
         data,
@@ -28,6 +26,8 @@ const Rapor = () => {
         isError,
         error
     } = useGetRaporQuery(page)
+    
+    
     
     //
     /* const calClass = (isAdmin || isManager) ? "table-yonetici" : (status === "Memur") ? "table-memur" : "table-calisan"; */
@@ -41,14 +41,10 @@ const Rapor = () => {
 
     if (isSuccess) {
         let filteredIds
-        const { ids, entities } = data.notes
-        console.log(ids)
-        console.log(entities)
+        const { ids, entities } = data?.notes
         //entities.sort((a,b) => a.cikisTarihi === b.cikisTarihi ? 0 : a.cikisTarihi ? 1 : -1)
         let count = data?.pagination.count
         let pageCount= data?.pagination.pageCount
-        console.log(count)
-        console.log(pageCount)
         //let count = 10
         if(!search){
             filteredIds = [...ids]
@@ -77,9 +73,7 @@ const Rapor = () => {
             
         }
 
-        
-
-
+        const calClass = (isAdmin || isManager) ? "rapor-table-yonetici" : "rapor-table-calisan";
     
         const tableContent = ids?.length && filteredIds.map(noteId => <RaporNote key={noteId} noteId={noteId} page={page}/>)
 
@@ -97,7 +91,7 @@ const Rapor = () => {
                 </div>
 
             </div>
-            <table className="table table_rapor">
+            <table className={`table ${calClass}`}>
                 <thead className="table__thead">
                     <tr>
                         <th scope="col" className="table__th">Dorse Plakası</th>
@@ -110,6 +104,8 @@ const Rapor = () => {
                         <th scope="col" className="table__th mobile">Çıkış Tarihi</th>
                         <th scope="col" className="table__th">Kaldığı Gün</th>
                         <th scope="col" className="table__th">Detay</th>
+                        {(isManager || isAdmin) && <th scope="col" className="table__th mobile">Düzenle</th>}
+                        {(isManager || isAdmin) && <th scope="col" className="table__th">Sil</th>}
                     </tr>
                 </thead>
                 <tbody>
@@ -126,8 +122,7 @@ const Rapor = () => {
 //////////////////////////////////////////////////////////////
 
 const RaporNote = ({ noteId, page }) => {
-
-
+    const { isManager, isAdmin} = useAuth()
     const { note   } = useGetRaporQuery(page, {
         selectFromResult: ({ data }) => ({
             note: data?.notes.entities[noteId]
@@ -136,22 +131,40 @@ const RaporNote = ({ noteId, page }) => {
 
     const navigate = useNavigate()
     
+    const [deleteNote] = useDeleteNoteMutation()
     
+    const onDeleteNoteClicked = async () => {
+        await deleteNote({ id: noteId })
+    }
+
+    let deleteButton = null
+        if (isManager || isAdmin) {
+            deleteButton = (
+                <button
+                    className="form__button danger__button"
+                    title="Sil"
+                    onClick={onDeleteNoteClicked}
+                >
+                    <FontAwesomeIcon icon={faTrashCan} />
+                </button>
+            )
+        }
     
 
     if (note) {
 
-        const handleDetail = () => navigate(`/dash/rapor/${noteId}`)
+        const handleDetail = () => navigate(`/dash/rapor/detail/${noteId}`)
+        const handleEdit = () => navigate(`/dash/rapor/edit/${noteId}`)
 
         let options = {
             dateStyle: "short",
             timeStyle: "short",  
         }
-        const created = new Date(note.createdAt).toLocaleString('tr-TR', options)
+        const girisTarihi = new Date(note.girisTarihi).toLocaleString('tr-TR', options)
 
         const cikisTarihi =note.cikisTarihi === undefined ? "" : new Date(note.cikisTarihi).toLocaleString('tr-TR', options)
 
-        const kaldigiGun =note.cikisTarihi === undefined ? "" : Math.ceil( (new Date(note.cikisTarihi).getTime() - new Date(note.createdAt).getTime())/(1000 * 3600 * 24))
+        const kaldigiGun =note.cikisTarihi === undefined ? "" : Math.ceil( (new Date(note.cikisTarihi).getTime() - new Date(note.girisTarihi).getTime())/(1000 * 3600 * 24))
 
         return (
             <tr className="table__row">
@@ -160,8 +173,8 @@ const RaporNote = ({ noteId, page }) => {
                 <td className="table__cell ">{note.goturen}</td>
                 <td className="table__cell  mobile">{note.firma}</td>
                 <td className="table__cell mobile">{note.mal}</td>
-                <td className="table__cell mobile">{note.gumruk}</td>
-                <td className="table__cell mobile">{created}</td>
+                <td className="table__cell mobile">{note.gumrukBilgi}</td>
+                <td className="table__cell mobile">{girisTarihi}</td>
                 <td className="table__cell mobile">{cikisTarihi}</td>
                 <td className="table__cell">{kaldigiGun}</td>
                 <td className="table__cell table-th__button">
@@ -172,6 +185,15 @@ const RaporNote = ({ noteId, page }) => {
                         Detay
                     </button>
                 </td>
+                {(isAdmin || isManager) && <td className="table__cell table-th__button mobile">
+                    <button
+                        className="button__danger"
+                        onClick={handleEdit}
+                    >
+                        Düzenle
+                    </button>
+                </td>}
+                {(isManager || isAdmin) && <td className="table__cell">{deleteButton}</td>}
             </tr>
         )
 

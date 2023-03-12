@@ -22,12 +22,8 @@ const EditNote = () => {
             note: data?.entities[id]
         }),
     })
-
-    
-
     if (!note) return <PulseLoader color={"#FFF"} />
-
-
+    
     if (!isManager && !isAdmin) {
         if (note.username !== username) {
             return <p className="errmsg">Erişim Engeli</p>
@@ -65,17 +61,11 @@ const EditNoteForm = ({ note }) => {
     const [dorse, setDorse] = useState(note.dorse)
     const [firma, setFirma] = useState(note.firma)
     const [mal, setMal] = useState(note.mal)
-    const [gumruk, setGumruk] = useState(note.gumruk)
+    const [girisTarihi, setGirisTarihi] = useState(note.girisTarihi.substring(0,16))
     
 
     useEffect(() => {
-
         if (isSuccess || isDelSuccess) {
-            setGetiren('')
-            setDorse('')
-            setFirma('')
-            setMal('')
-            setGumruk('')
             navigate('/dash/notes')
         }
 
@@ -85,14 +75,15 @@ const EditNoteForm = ({ note }) => {
     const onDorseChanged = e => setDorse(e.target.value)
     const onFirmaChanged = e => setFirma(e.target.value)
     const onMalChanged = e => setMal(e.target.value)
-    const onGumrukChanged = e => setGumruk(e.target.value)
+    const onGirisTarihiChanged = e => setGirisTarihi(e.target.value)
+    
     
 
     const canSave = [getiren, dorse].every(Boolean) && !isLoading
 
     const onSaveNoteClicked = async (e) => {
         if (canSave) {
-            await updateNote({ id: note.id, user: username, getiren, dorse, firma, mal, gumruk})
+            await updateNote({ id: note.id, user: username, getiren, dorse, firma, mal, girisTarihi, guncellemeTarihi: Date.now()})
         }
     }
 
@@ -143,11 +134,9 @@ const EditNoteForm = ({ note }) => {
                         {deleteButton}
                     </div>
                 </div>
-                                    
             </div>
 
             <form className="form" onSubmit={e => e.preventDefault()} autoComplete="off">
-                                 
                 <label className="form__label" htmlFor="getiren">
                     Getiren Çekici Plakası:</label>
                 <input
@@ -194,20 +183,17 @@ const EditNoteForm = ({ note }) => {
                     value={mal}
                     onChange={onMalChanged}
                 />
-                <label className="form__label" htmlFor="gumruk">
-                    Gümrük Bilgi:</label>
+                <label className="form__label" htmlFor="girisTarihi">
+                    Giriş Tarihi:</label>
                 <input
-                    className={`form__input form__input--text`}
-                    id="gumruk"
-                    name="gumruk"
-                    type= "text"
-                    autoComplete="off"
-                    value={gumruk}
-                    onChange={onGumrukChanged}
-                />
-                                                
-            </form> 
-                      
+                    className={`form__input `}
+                    id="girisTarihi"
+                    name="girisTarihi"
+                    type="datetime-local"
+                    onChange={onGirisTarihiChanged}
+                    value={girisTarihi}
+                />            
+            </form>
         </div>
         </div>
     )

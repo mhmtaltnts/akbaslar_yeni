@@ -14,8 +14,6 @@ const NotesList = () => {
 
     const { isManager, isAdmin, status } = useAuth()
 
-    console.log(status)
-
     const [search, setSearch] = useState("")
 
     const calClass = (isAdmin || isManager) ? "table-yonetici" : (status === "Memur") ? "table-memur" : "table-calisan";
@@ -105,7 +103,7 @@ const Note = ({ noteId }) => {
 
     const navigate = useNavigate()
     /* const yonClass = isAdmin || isManager ? "yonetici" : ""; */
-    const created = new Date(note.createdAt).toLocaleString('tr-TR', options)
+    const girisTarihi = new Date(note.girisTarihi).toLocaleString('tr-TR', options)
     if (note) {
         const handleEdit = () => navigate(`/dash/notes/${noteId}`)
         const handleCikis = () => navigate(`/dash/cikis/${noteId}`)
@@ -117,8 +115,8 @@ const Note = ({ noteId }) => {
                 <td className="table__cell">{note.dorse}</td>
                 <td className="table__cell mobile">{note.firma}</td>
                 <td className="table__cell mobile">{note.mal}</td>
-                <td className="table__cell mobile">{note.gumruk}</td>
-                <td className="table__cell mobile">{created}</td>
+                <td className="table__cell mobile">{note.gumrukBilgi}</td>
+                <td className="table__cell mobile">{girisTarihi}</td>
                 <td className="table__cell mobile">{note.girisYapan}</td>
 
                 {(status !== "Çalışan") && <td className="table__cell table-th__button">

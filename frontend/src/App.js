@@ -10,8 +10,9 @@ import EditUser from './features/users/EditUser'
 import NewUser from './features/users/NewUser'
 import EditNote from './features/notes/EditNote'
 import NoteDetail from './features/rapor/NoteDetail';
+import EditRapor from './features/rapor/EditRapor'
 import Cikis from './features/cikis/Cikis'
-import Gumruk from './features/gumruk/Gumruk'
+import EditGumruk from './features/gumruk/EditGumruk'
 import Rapor from './features/rapor/Rapor'
 import NewNote from './features/notes/NewNote'
 import Prefetch from './features/auth/Prefetch'
@@ -53,7 +54,7 @@ function App() {
                 </Route>
                 
                 <Route path="gumruk">                 
-                  <Route path=":id" element={<Gumruk />} />
+                  <Route path=":id" element={<EditGumruk />} />
                 </Route>
 
                 <Route element={<RequireAuth allowedRoles={[ROLES.Manager, ROLES.Admin]} />}>
@@ -71,7 +72,8 @@ function App() {
 
                   <Route path="rapor">                 
                     <Route index element={<Rapor />} />
-                    <Route path=":id" element={<NoteDetail/>} />
+                    <Route path="detail/:id" element={<NoteDetail/>} />
+                    <Route path="edit/:id" element={<EditRapor/>} />
                   </Route>
                 </Route>
               </Route>{/* End Dash */}

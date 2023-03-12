@@ -1,9 +1,10 @@
-import { useParams } from 'react-router-dom'
-import { useGetRaporQuery } from '../../app/api/notesApiSlice'
+import { useParams} from 'react-router-dom'
+import { useGetRaporQuery} from '../../app/api/notesApiSlice'
 import PulseLoader from 'react-spinners/PulseLoader'
 import useTitle from '../../hooks/useTitle'
 import { selectCurrentPage } from "../../app/appStore/pageSlice"
 import { useSelector} from 'react-redux'
+import moment from "moment"
 
 
 const NoteDetail = () => {
@@ -11,7 +12,6 @@ const NoteDetail = () => {
 
     const { id } = useParams()
     const page = useSelector(selectCurrentPage)
-
     const {
         note
     } = useGetRaporQuery(page, {
@@ -19,45 +19,27 @@ const NoteDetail = () => {
             note: data?.notes.entities[id]
         }),
     })
-
-    
-
     if (!note) return <PulseLoader color={"#FFF"} />
-
-
-    const content = <EditNoteForm note={note} />
-    
-
+    const content = <NoteForm note={note} />   
     return content
 }
 
-
-
-const EditNoteForm = ({ note }) => {
-
+const NoteForm = ({ note }) => {
+    
     let options = {
         dateStyle: "short",
-        timeStyle: "short",  
+        timeStyle: "short",
+        
     }
-    const created = new Date(note.createdAt).toLocaleString('tr-TR', options)
-    const degismeT = note.degismeTarihi === undefined ? "": new Date(note.degismeTarihi).toLocaleString('tr-TR', options)
-    console.log(note.gumrukGirisTarihi)
-    const gumrukDate = note.gumrukGirisTarihi === undefined ? "": new Date(note.gumrukGirisTarihi).toLocaleString('tr-TR', options)
-    const cikisTarihi = new Date(note.cikisTarihi).toLocaleString('tr-TR', options)
-    
 
     const content = (
         <div className='wrapper'>
-        <div className="form_wrapper">
-            
-           
+        <div className="form_wrapper">           
             <div className="form__title-row">            
                 <h2 className='subtitle1'>Araç Hakkında Detay</h2>                                    
             </div>
-
-            <form className="form" onSubmit={e => e.preventDefault()}>
-                
-                               
+            
+            <form className="form" onSubmit={e => e.preventDefault()}>                               
                 <label className="form__label" htmlFor="getiren">
                     Getiren Çekici Plakası:</label>
                 <input
@@ -69,7 +51,6 @@ const EditNoteForm = ({ note }) => {
                     value={note.getiren}
                     disabled
                 />
-
                 <label className="form__label" htmlFor="dorse">
                     Dorse Plakası:</label>
                 <input
@@ -103,19 +84,17 @@ const EditNoteForm = ({ note }) => {
                     value={note.mal}
                     disabled
                 />
-                <label className="form__label" htmlFor="gumruk">
+                <label className="form__label" htmlFor="gumrukBilgi">
                     Gümrük Bilgi:</label>
                 <textarea
                     className={`form__input form__input--text`}
-                    id="gumruk"
-                    name="gumruk"
+                    id="gumrukBilgi"
+                    name="gumrukBilgi"
                     type= "text"
                     autoComplete="off"
-                    value={note.gumruk}
+                    value={note.gumrukBilgi}
                     disabled
-                />
-                             
-                
+                />         
                 <label className="form__label" htmlFor="goturen">
                     Götüren Çekici Plakası:</label>
                 <input
@@ -127,56 +106,49 @@ const EditNoteForm = ({ note }) => {
                     value={note.goturen}
                     disabled
                 />
-
                 <label className="form__label" htmlFor="girisTarihi">
                     Giriş Tarihi:</label>
                 <input
                     className={`form__input `}
                     id="girisTarihi"
                     name="girisTarihi"
-                    type="text"
+                    type="datetime-local"
                     autoComplete="off"
-                    value={created}
+                    value={moment(note.girisTarihi).format('YYYY-MM-DDTHH:mm')}
                     disabled
                 /> 
-
-                <label className="form__label" htmlFor="gumruk">
+                <label className="form__label" htmlFor="gumrukBilgi">
                     Gümrük Giriş Tarihi:</label>
                 <input
                     className={`form__input form__input--text`}
-                    id="gumruk"
-                    name="gumruk"
-                    type= "text"
+                    id="gumrukBilgi"
+                    name="gumrukBilgi"
+                    type= "datetime-local"
                     autoComplete="off"
-                    value={gumrukDate}
+                    value={moment(note.gumrukBilgiTarihi).format('YYYY-MM-DDTHH:mm')}
                     disabled
                 />
-                
                 <label className="form__label" htmlFor="ct">
-                    Çıkış Tarihi:</label>
+                    Çıkış Tarihi:</label>    
                 <input
                     className={`form__input form__input--text`}
                     id="ct"
                     name="ct"
-                    type= "text"
-                    autoComplete="off"
-                    value={cikisTarihi}
+                    type= "datetime-local"                    
+                    value={moment(note.cikisTarihi).format('YYYY-MM-DDTHH:mm')}
                     disabled
                 />
-
-                
                 <label className="form__label" htmlFor="gT">
                     Değiştirme Tarihi:</label>
                 <input
                     className={`form__input form__input--text`}
                     id="gT"
                     name="gT"
-                    type= "text"
+                    type= "datetime-local"
                     autoComplete="off"
-                    value={degismeT}
+                    value={moment(note.guncellemeTarihi).format('YYYY-MM-DDTHH:mm')}
                     disabled
                 />
-
                 <label className="form__label" htmlFor="girisYapan">
                     Giriş Yapan:</label>
                 <input
@@ -188,17 +160,15 @@ const EditNoteForm = ({ note }) => {
                     value={note.girisYapan}
                     disabled
                 />
-
-                                
-                <label className="form__label" htmlFor="gumruk">
+                <label className="form__label" htmlFor="gumrukBilgi">
                     Gümrük Girişi Yapan:</label>
                 <input
                     className={`form__input form__input--text`}
-                    id="gumruk"
-                    name="gumruk"
+                    id="gumrukBilgi"
+                    name="gumrukBilgi"
                     type= "text"
                     autoComplete="off"
-                    value={note.gumrukGirisiYapan}
+                    value={note.gumrukYapan}
                     disabled
                 />
                 <label className="form__label" htmlFor="guncelleme">
@@ -209,7 +179,7 @@ const EditNoteForm = ({ note }) => {
                     name="guncelleme"
                     type= "text"
                     autoComplete="off"
-                    value={note.guncelleyen}
+                    value={note.guncellemeYapan}
                     disabled
                 /> 
                 <label className="form__label" htmlFor="cy">
@@ -223,9 +193,7 @@ const EditNoteForm = ({ note }) => {
                     value={note.cikisYapan}
                     disabled
                 />
-                                                
             </form> 
-                      
         </div>
         </div>
     )

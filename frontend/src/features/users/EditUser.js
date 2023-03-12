@@ -137,7 +137,7 @@ const EditUserForm = ({ user }) => {
                 
                 <div className="form__title-row">
                 <h2>Kullanıcı Düzenle</h2>                   
-                     <div className="form__action-buttons-wrapper">
+                    <div className="form__action-buttons-wrapper">
                         <div className="form__action-buttons">
                             <button
                                 className="form__button success__button"

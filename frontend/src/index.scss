@@ -531,6 +531,7 @@ select {
 
 .danger__button{
   color: var(--error-dark);
+  border: none;
 }
 
 .button-basic{
@@ -719,7 +720,11 @@ td{
   grid-template-columns: repeat(3, 1fr);  
 }
 
-.table_rapor {
+.rapor-table-yonetici {
+  grid-template-columns: repeat(12, auto) ;
+
+}
+.rapor-table-calisan {
   grid-template-columns: repeat(10, auto) ;
 
 }
@@ -850,7 +855,7 @@ option {
     font-size: 1rem;
     line-height: 1.5;
     color: #495057;
-    background-color: #fff;
+    background-color:var(--grey-200);
     background-clip: padding-box;
     border: 1px solid #ced4da;
     box-shadow: var(--shadow-1);
@@ -1369,8 +1374,12 @@ option {
   }
   
   
-  .table_rapor {
+  .rapor-table-calisan {
     grid-template-columns: repeat(4, auto) ;
+  
+  }
+  .rapor-table-yonetici {
+    grid-template-columns: repeat(5, auto) ;
   
   }
   
@@ -1500,7 +1509,7 @@ option {
       font-size: 1rem;
       line-height: 1.5;
       color: #495057;
-      background-color: #fff;
+      background-color: var(--grey-200);
       background-clip: padding-box;
       border: 1px solid #ced4da;
       box-shadow: var(--shadow-1);

@@ -1,10 +1,10 @@
 import { useParams } from 'react-router-dom'
 import { useGetNotesQuery } from '../../app/api/notesApiSlice'
-/* import useAuth from '../../hooks/useAuth' */
+import moment from 'moment'
 import PulseLoader from 'react-spinners/PulseLoader'
 import useTitle from '../../hooks/useTitle'
 import { useState, useEffect } from "react"
-import { useGumrukMutation } from "../../app/api/notesApiSlice"
+import { useGumrukBilgiMutation } from "../../app/api/notesApiSlice"
 import { useNavigate } from "react-router-dom"
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSave} from "@fortawesome/free-solid-svg-icons"
@@ -45,54 +45,41 @@ const EditGumrukForm = ({ note }) => {
 
     const { username} = useAuth()
 
-    const [cikisNote, {
+    const [gumrukBilgiNote, {
         isLoading,
         isSuccess,
         isError,
         error
-    }] = useGumrukMutation()
+    }] = useGumrukBilgiMutation()
 
 
     const navigate = useNavigate()
 
-    const [gumruk, setGumruk] = useState(note.gumruk)
+    const [gumrukBilgi, setgumrukBilgi] = useState(note.gumrukBilgi??"")
     
 
     useEffect(() => {
 
         if (isSuccess ) {
-            setGumruk('')            
+            setgumrukBilgi('')            
             navigate('/dash/notes')
         }
 
     }, [isSuccess, navigate])
 
-    const onGumrukChanged = e => setGumruk(e.target.value)
+    const onGumrukBilgiChanged = e => setgumrukBilgi(e.target.value)
     
 
-    const canSave = [gumruk].every(Boolean) && !isLoading
+    const canSave = [gumrukBilgi].every(Boolean) && !isLoading
 
     const onSaveNoteClicked = async (e) => {
         if (canSave) {
-            await cikisNote({ id: note.id, user: username, gumruk})
+            await gumrukBilgiNote({ id: note.id, user: username, gumrukBilgi, gumrukBilgiTarihi: Date.now()})
         }
     }
-
-    
-
     const errClass = (isError ) ? "errmsg" : "offscreen"
-    const validGumrukClass = !gumruk ? "form__input--incomplete" : ''
-    
-
+    const validgumrukBilgiClass = !gumrukBilgi ? "form__input--incomplete" : ''
     const errContent = (error?.data?.message) ?? ''
-    
-    let options = {
-        dateStyle: "short",
-        timeStyle: "short",
-    }
-    const created = new Date(note.createdAt).toLocaleString('tr-TR', options)
-
-
     
     const content = (
         <div className='wrapper'>
@@ -116,16 +103,16 @@ const EditGumrukForm = ({ note }) => {
             </div>
 
             <form className="form" onSubmit={e => e.preventDefault()}>
-                 <label htmlFor="gumruk">Gümrük Kaydı</label>               
+                <label htmlFor="gumrukBilgi">Gümrük Kaydı</label>               
                 <textarea
-                    className={`form__input ${validGumrukClass}`}
-                    id="gumruk"
-                    name="gumruk"
+                    className={`form__input ${validgumrukBilgiClass}`}
+                    id="gumrukBilgi"
+                    name="gumrukBilgi"
                     type="text"
                     autoComplete="off"
                     placeholder="Gümrük bilgilerini yazınız"
-                    value={gumruk}
-                    onChange={onGumrukChanged}
+                    value={gumrukBilgi}
+                    onChange={onGumrukBilgiChanged}
                     autoFocus
                 />
                 <label htmlFor="dorse">Dorse Plakası</label>
@@ -160,11 +147,10 @@ const EditGumrukForm = ({ note }) => {
                     className={`form__input`}
                     id="gelisTarihi"
                     name="gelisTarihi"
-                    type="text"
-                    value={created}
+                    type="datetime-local"
+                    value={moment(note.girisTarihi).format('YYYY-MM-DDTHH:mm')}
                     disabled
                 />
-                               
             </form>
         </div>
         </div>

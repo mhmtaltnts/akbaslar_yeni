@@ -42,17 +42,9 @@ export const notesApiSlice = apiSlice.injectEndpoints({
                 } else return [{ type: 'Note', id: 'LIST' }]
             }
         }),
-        getNote: builder.query({
-            query: ({ id} ) => ({
-                url: `/rapor/${id}`,
-                method: 'GET',
-
-            }),
-            
-        }),
         
         getRapor: builder.query({
-            query: (page=1) => ({
+            query: (page) => ({
                 url: `/rapor?page=${page}`,
                 validateStatus: (response, result) => {
                     return response.status === 200 && !result.isError
@@ -106,6 +98,19 @@ export const notesApiSlice = apiSlice.injectEndpoints({
                 { type: 'Note', id: arg.id }
             ]
         }),
+        updateRapor: builder.mutation({
+            query: initialNote => ({
+                url: '/rapor',
+                method: 'PATCH',
+                body: {
+                    ...initialNote,
+                }
+            }),
+            invalidatesTags: (result, error, arg) => [
+                { type: 'Note', id: "LIST" },
+                { type: 'Note', id: arg.id }
+            ]
+        }),
         
         cikis: builder.mutation({
             query: initialNote => ({
@@ -120,7 +125,7 @@ export const notesApiSlice = apiSlice.injectEndpoints({
                 { type: 'Note', id: arg.id }
             ]
         }),
-        gumruk: builder.mutation({
+        gumrukBilgi: builder.mutation({
             query: initialNote => ({
                 url: '/gumruk',
                 method: 'PATCH',
@@ -152,9 +157,9 @@ export const {
     useGetRaporQuery,
     useAddNewNoteMutation,
     useUpdateNoteMutation,
-    useUpdateRaporNoteMutation,
+    useUpdateRaporMutation,
     useCikisMutation,
-    useGumrukMutation,
+    useGumrukBilgiMutation,
     useDeleteNoteMutation,
     useGetNoteQuery,
 } = notesApiSlice

@@ -1,6 +1,5 @@
 import { useParams } from 'react-router-dom'
 import { useGetNotesQuery } from '../../app/api/notesApiSlice'
-/* import useAuth from '../../hooks/useAuth' */
 import PulseLoader from 'react-spinners/PulseLoader'
 import useTitle from '../../hooks/useTitle'
 import { useState, useEffect } from "react"
@@ -12,21 +11,15 @@ import useAuth from "../../hooks/useAuth"
 
 const Cikis = () => {
     useTitle('Çıkış Yap')
-
     const { id } = useParams()
-
     /* const { username, isManager, isAdmin } = useAuth() */
-
     const { note } = useGetNotesQuery("notesList", {
         selectFromResult: ({ data }) => ({
             note: data?.entities[id]
         }),
     })
 
-    
-
     if (!note) return <PulseLoader color={"#FFF"} />
-
 
     /* if (!isManager && !isAdmin) {
         if (note.username !== username) {
@@ -43,8 +36,7 @@ const Cikis = () => {
 
 const CikisForm = ({ note }) => {
 
-    const { username} = useAuth()
-
+    const { username } = useAuth()
     const [cikisNote, {
         isLoading,
         isSuccess,
@@ -55,7 +47,7 @@ const CikisForm = ({ note }) => {
 
     const navigate = useNavigate()
 
-    const [goturen, setGoturen] = useState(note.goturen)
+    const [goturen, setGoturen] = useState("")
     
 
     useEffect(() => {
@@ -74,7 +66,7 @@ const CikisForm = ({ note }) => {
 
     const onSaveNoteClicked = async (e) => {
         if (canSave) {
-            await cikisNote({ id: note.id, user: username, goturen})
+            await cikisNote({ id: note.id, user: username, goturen, cikisTarihi: Date.now()})
         }
     }
 
@@ -85,11 +77,6 @@ const CikisForm = ({ note }) => {
 
     const errContent = (error?.data?.message) ?? ''
     
-    let options = {
-        dateStyle: "short",
-        timeStyle: "short",
-    }
-    const created = new Date(note.createdAt).toLocaleString('tr-TR', options)
     
     const content = (
         <div className='wrapper'>
@@ -98,7 +85,7 @@ const CikisForm = ({ note }) => {
             <div className="form__title-row">
             <h2>Park Araç Çıkışı</h2>
                 <div className="form__action-buttons-wrapper">
-                   <div className="form__action-buttons">
+                <div className="form__action-buttons">
                         <button
                             className="form__button success__button"
                             title="Save"
@@ -110,7 +97,7 @@ const CikisForm = ({ note }) => {
                     </div>
                     </div>       
                     
-               </div>
+            </div>
             
 
             <form className="form" onSubmit={e => e.preventDefault()}>
@@ -160,7 +147,7 @@ const CikisForm = ({ note }) => {
                     id="gelisTarihi"
                     name="gelisTarihi"
                     type="text"
-                    value={created}
+                    value={note.girisTarihi}
                     disabled
                 />
                 

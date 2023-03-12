@@ -27,15 +27,12 @@ const NewNoteForm = () => {
         isError,
         error
     }] = useAddNewNoteMutation()
-
     const navigate = useNavigate()
-
     const [getiren, setGetiren] = useState('')
     const [dorse, setDorse] = useState('')
     const [firma, setFirma] = useState('')
     const [mal, setMal] = useState('')
     
-
     useEffect(() => {
         if (isSuccess) {
             setGetiren('')
@@ -50,31 +47,24 @@ const NewNoteForm = () => {
     const onDorseChanged = e => setDorse(e.target.value)
     const onFirmaChanged = e => setFirma(e.target.value)
     const onMalChanged = e => setMal(e.target.value)
-
     const canSave = [getiren, dorse].every(Boolean) && !isLoading
-
     const onSaveNoteClicked = async (e) => {
         e.preventDefault()
         if (canSave) {
-            await addNewNote({ user: username, getiren, dorse, firma, mal })
+            await addNewNote({ user: username, getiren, dorse, firma, mal, girisTarihi: Date.now() })
         }
     }
-
-
     const errClass = isError ? "errmsg" : "offscreen"
     const validGetirenClass = !getiren ? "form__input--incomplete" : ''
     const validDorseClass = !dorse ? "form__input--incomplete" : ''
-    
-    
-
     const content = (
         <div className='wrapper'>
         <div className="form_wrapper">
             <p className={errClass}>{error?.data?.message}</p>
-               <div className="form__title-row">
-               <h2>Yeni Park Girişi</h2>
+            <div className="form__title-row">
+            <h2>Yeni Park Girişi</h2>
                     <div className="form__action-buttons-wrapper">
-                     <div className="form__action-buttons">
+                    <div className="form__action-buttons">
                         <button
                             className="form__button success__button"
                             title="Kaydet"
@@ -83,14 +73,11 @@ const NewNoteForm = () => {
                         >
                             <FontAwesomeIcon icon={faSave} />
                         </button>
-                     </div>
                     </div>
-
+                    </div>
                     
-               </div>
-
+            </div>
             <form className="form" onSubmit={onSaveNoteClicked} autoComplete= "off">
-                         
                 <input
                     className={`form__input ${validGetirenClass}`}
                     id="getiren"
@@ -102,7 +89,6 @@ const NewNoteForm = () => {
                     onChange={onGetirenChanged}
                     autoFocus
                 />
-
                 <input
                     className={`form__input form__input--text ${validDorseClass}`}
                     id="dorse"
@@ -113,7 +99,6 @@ const NewNoteForm = () => {
                     placeholder="Dorse Plakası"
                     onChange={onDorseChanged}
                 />
-                
                 <input
                     className={`form__input form__input--text`}
                     id="firma"
@@ -124,7 +109,6 @@ const NewNoteForm = () => {
                     placeholder="Firma"
                     onChange={onFirmaChanged}
                 />
-                
                 <input
                     className={`form__input form__input--text `}
                     id="mal"
@@ -135,16 +119,11 @@ const NewNoteForm = () => {
                     placeholder="Malın Cinsi"
                     onChange={onMalChanged}
                 />
-                               
             </form>
         </div>
-
         </div>
     )
-
     return content
 }
-
-
 
 export default NewNote
