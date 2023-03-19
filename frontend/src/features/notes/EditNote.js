@@ -50,7 +50,7 @@ const EditNoteForm = ({ note }) => {
     const [dorse, setDorse] = useState(note.dorse)
     const [firma, setFirma] = useState(note.firma)
     const [mal, setMal] = useState(note.mal)
-    const [girisTarihi, setGirisTarihi] = useState(moment(note.girisTarihi).format('YYYY-MM-DDTHH:mm')??"")
+    const [girisTarihi, setGirisTarihi] = useState(note.girisTarihi??"")
     
 
     useEffect(() => {
@@ -63,7 +63,7 @@ const EditNoteForm = ({ note }) => {
     const onDorseChanged = e => setDorse(e.target.value)
     const onFirmaChanged = e => setFirma(e.target.value)
     const onMalChanged = e => setMal(e.target.value)
-    const onGirisTarihiChanged = e => setGirisTarihi(e.target.value)
+    const onGirisTarihiChanged = e => setGirisTarihi(moment.utc(`${e.target.value}`).format('l LT'))
     
     const canSave = [getiren, dorse].every(Boolean) && !isLoading
     const onSaveNoteClicked = async (e) => {
@@ -178,7 +178,7 @@ const EditNoteForm = ({ note }) => {
                     name="girisTarihi"
                     type="datetime-local"
                     onChange={onGirisTarihiChanged}
-                    value={girisTarihi}
+                    value={moment(girisTarihi).format('YYYY-MM-DDTHH:mm')}
                 />            
             </form>
         </div>

@@ -115,7 +115,7 @@ const NoteForm = ({ note }) => {
                     disabled
                 />
                 <label className="form__label" htmlFor="gumrukBilgi">
-                    Gümrük Bilgi Tarihi:</label>
+                    Gümrük Giriş Tarihi:</label>
                 <input
                     className={`form__input form__input--text`}
                     id="gumrukBilgi"
