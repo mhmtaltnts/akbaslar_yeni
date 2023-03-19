@@ -41,16 +41,16 @@ const noteSchema = new mongoose.Schema(
             type: String,
         },
         girisTarihi:{
-            type: Date
+            type: Number
         },
         gumrukBilgiTarihi: {
-            type: Date,
+            type: Number,
         },
         cikisTarihi: {
-            type: Date,
+            type: Number,
         },
         guncellemeTarihi: {
-            type: Date,
+            type: Number,
         },
     },
 )

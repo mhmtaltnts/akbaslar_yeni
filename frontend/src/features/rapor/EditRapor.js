@@ -53,10 +53,10 @@ const EditNoteForm = ({ note }) => {
     const onGoturenChanged = e => setGoturen(e.target.value)
     const onFirmaChanged = e => setFirma(e.target.value)
     const onMalChanged = e => setMal(e.target.value)
-    const onGirisTarihiChanged = e => setGirisTarihi(moment.utc(`${e.target.value}`).format('l LT'))
-    const onCikisTarihiChanged = e => setCikisTarihi(moment.utc(`${e.target.value}`).format('l LT'))
+    const onGirisTarihiChanged = e => setGirisTarihi(new Date(`${e.target.value}`).getTime())
+    const onCikisTarihiChanged = e => setCikisTarihi(new Date(`${e.target.value}`).getTime())
     const ongumrukBilgiChanged = e => setgumrukBilgi(e.target.value)
-    const ongumrukBilgiTarihiChanged = e => setgumrukBilgiTarihi(moment.utc(`${e.target.value}`).format('l LT'))
+    const ongumrukBilgiTarihiChanged = e => setgumrukBilgiTarihi(new Date(`${e.target.value}`).getTime())
 
     const onSaveRaporClicked = async () => {        
             await updateRapor({ id: note.id, user: username, dorse, getiren, goturen, firma, mal, girisTarihi, cikisTarihi, gumrukBilgi, gumrukBilgiTarihi, guncellemeTarihi: Date.now()})

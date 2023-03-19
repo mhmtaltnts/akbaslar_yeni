@@ -63,7 +63,7 @@ const EditNoteForm = ({ note }) => {
     const onDorseChanged = e => setDorse(e.target.value)
     const onFirmaChanged = e => setFirma(e.target.value)
     const onMalChanged = e => setMal(e.target.value)
-    const onGirisTarihiChanged = e => setGirisTarihi(moment.utc(`${e.target.value}`).format('l LT'))
+    const onGirisTarihiChanged = e => setGirisTarihi(new Date(`${e.target.value}`).getTime())
     
     const canSave = [getiren, dorse].every(Boolean) && !isLoading
     const onSaveNoteClicked = async (e) => {
