@@ -25,12 +25,9 @@ const NoteDetail = () => {
 }
 
 const NoteForm = ({ note }) => {
-    
-    let options = {
-        dateStyle: "short",
-        timeStyle: "short",
-        
-    }
+    const guncellemeTarihi = note.guncellemeTarihi===undefined ? "" : moment(note.guncellemeTarihi).format('DD.MM.YYYY HH:mm')
+    const gumrukTarihi = note.gumrukBilgiTarihi===undefined ? "" : moment(note.gumrukBilgiTarihi).format('DD.MM.YYYY HH:mm')
+
 
     const content = (
         <div className='wrapper'>
@@ -39,7 +36,29 @@ const NoteForm = ({ note }) => {
                 <h2 className='subtitle1'>Araç Hakkında Detay</h2>                                    
             </div>
             
-            <form className="form" onSubmit={e => e.preventDefault()}>                               
+            <form className="form" onSubmit={e => e.preventDefault()}>
+                <label className="form__label" htmlFor="girisYapan">
+                    Giriş Yapan:</label>
+                <input
+                    className={`form__input `}
+                    id="girisYapan"
+                    name="girisYapan"
+                    type="text"
+                    autoComplete="off"
+                    value={note.girisYapan}
+                    disabled
+                />
+                <label className="form__label" htmlFor="girisTarihi">
+                    Giriş Tarihi:</label>
+                <input
+                    className={`form__input `}
+                    id="girisTarihi"
+                    name="girisTarihi"
+                    type="text"
+                    autoComplete="off"
+                    value={moment(note.girisTarihi).format('DD.MM.YYYY HH:mm')}
+                    disabled
+                />                               
                 <label className="form__label" htmlFor="getiren">
                     Getiren Çekici Plakası:</label>
                 <input
@@ -74,7 +93,7 @@ const NoteForm = ({ note }) => {
                     disabled
                 />
                 <label className="form__label" htmlFor="mal">
-                    Malın cinsi:</label>
+                    Malın Cinsi:</label>
                 <input
                     className={`form__input form__input--text`}
                     id="mal"
@@ -94,70 +113,16 @@ const NoteForm = ({ note }) => {
                     autoComplete="off"
                     value={note.gumrukBilgi}
                     disabled
-                />         
-                <label className="form__label" htmlFor="goturen">
-                    Götüren Çekici Plakası:</label>
-                <input
-                    className={`form__input form__input--text`}
-                    id="goturen"
-                    name="goturen"
-                    type= "text"
-                    autoComplete="off"
-                    value={note.goturen}
-                    disabled
                 />
-                <label className="form__label" htmlFor="girisTarihi">
-                    Giriş Tarihi:</label>
-                <input
-                    className={`form__input `}
-                    id="girisTarihi"
-                    name="girisTarihi"
-                    type="datetime-local"
-                    autoComplete="off"
-                    value={moment(note.girisTarihi).format('YYYY-MM-DDTHH:mm')}
-                    disabled
-                /> 
                 <label className="form__label" htmlFor="gumrukBilgi">
-                    Gümrük Giriş Tarihi:</label>
+                    Gümrük Bilgi Tarihi:</label>
                 <input
                     className={`form__input form__input--text`}
                     id="gumrukBilgi"
                     name="gumrukBilgi"
-                    type= "datetime-local"
+                    type= "text"
                     autoComplete="off"
-                    value={moment(note.gumrukBilgiTarihi).format('YYYY-MM-DDTHH:mm')}
-                    disabled
-                />
-                <label className="form__label" htmlFor="ct">
-                    Çıkış Tarihi:</label>    
-                <input
-                    className={`form__input form__input--text`}
-                    id="ct"
-                    name="ct"
-                    type= "datetime-local"                    
-                    value={moment(note.cikisTarihi).format('YYYY-MM-DDTHH:mm')}
-                    disabled
-                />
-                <label className="form__label" htmlFor="gT">
-                    Değiştirme Tarihi:</label>
-                <input
-                    className={`form__input form__input--text`}
-                    id="gT"
-                    name="gT"
-                    type= "datetime-local"
-                    autoComplete="off"
-                    value={moment(note.guncellemeTarihi).format('YYYY-MM-DDTHH:mm')}
-                    disabled
-                />
-                <label className="form__label" htmlFor="girisYapan">
-                    Giriş Yapan:</label>
-                <input
-                    className={`form__input `}
-                    id="girisYapan"
-                    name="girisYapan"
-                    type="text"
-                    autoComplete="off"
-                    value={note.girisYapan}
+                    value={gumrukTarihi}
                     disabled
                 />
                 <label className="form__label" htmlFor="gumrukBilgi">
@@ -169,6 +134,49 @@ const NoteForm = ({ note }) => {
                     type= "text"
                     autoComplete="off"
                     value={note.gumrukYapan}
+                    disabled
+                />         
+                <label className="form__label" htmlFor="goturen">
+                    Götüren Çekici Plakası:</label>
+                <input
+                    className={`form__input form__input--text`}
+                    id="goturen"
+                    name="goturen"
+                    type= "text"
+                    autoComplete="off"
+                    value={note.goturen}
+                    disabled
+                /> 
+                <label className="form__label" htmlFor="ct">
+                    Çıkış Tarihi:</label>    
+                <input
+                    className={`form__input form__input--text`}
+                    id="ct"
+                    name="ct"
+                    type= "text"                    
+                    value={moment(note.cikisTarihi).format('DD.MM.YYYY HH:mm')}
+                    disabled
+                />
+                <label className="form__label" htmlFor="cy">
+                    Çıkış Yapan:</label>
+                <input
+                    className={`form__input form__input--text`}
+                    id="cy"
+                    name="cy"
+                    type= "text"
+                    autoComplete="off"
+                    value={note.cikisYapan}
+                    disabled
+                />
+                <label className="form__label" htmlFor="gT">
+                    Değiştirme Tarihi:</label>
+                <input
+                    className={`form__input form__input--text`}
+                    id="gT"
+                    name="gT"
+                    type= "text"
+                    autoComplete="off"
+                    value={guncellemeTarihi}
                     disabled
                 />
                 <label className="form__label" htmlFor="guncelleme">
@@ -182,17 +190,7 @@ const NoteForm = ({ note }) => {
                     value={note.guncellemeYapan}
                     disabled
                 /> 
-                <label className="form__label" htmlFor="cy">
-                    Çıkış Yapan:</label>
-                <input
-                    className={`form__input form__input--text`}
-                    id="cy"
-                    name="cy"
-                    type= "text"
-                    autoComplete="off"
-                    value={note.cikisYapan}
-                    disabled
-                />
+                
             </form> 
         </div>
         </div>

@@ -122,7 +122,9 @@ const RaporNote = ({ noteId, page }) => {
     const [deleteNote] = useDeleteNoteMutation()
     
     const onDeleteNoteClicked = async () => {
-        await deleteNote({ id: noteId })
+        if(window.confirm("Silmek istediğinizden emin misiniz?") === true ) 
+           {await deleteNote({ id: noteId })}
+           else return
     }
 
     let deleteButton = null

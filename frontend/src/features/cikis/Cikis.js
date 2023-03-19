@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom"
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSave} from "@fortawesome/free-solid-svg-icons"
 import useAuth from "../../hooks/useAuth"
+import moment from "moment"
 
 const Cikis = () => {
     useTitle('Çıkış Yap')
@@ -146,8 +147,8 @@ const CikisForm = ({ note }) => {
                     className={`form__input`}
                     id="gelisTarihi"
                     name="gelisTarihi"
-                    type="text"
-                    value={note.girisTarihi}
+                    type="datetime-local"
+                    value={moment(note.girisTarihi).format('YYYY-MM-DDTHH:mm')}
                     disabled
                 />
                 

@@ -78,6 +78,9 @@ const NewNoteForm = () => {
                     
             </div>
             <form className="form" onSubmit={onSaveNoteClicked} autoComplete= "off">
+                <label className="form__label" htmlFor="getiren">
+                    Getiren Çekici Plakası:
+                </label>
                 <input
                     className={`form__input ${validGetirenClass}`}
                     id="getiren"
@@ -85,10 +88,12 @@ const NewNoteForm = () => {
                     type="text"
                     autoComplete="off"
                     value={getiren}
-                    placeholder="Getiren Çekici Plakası"
                     onChange={onGetirenChanged}
                     autoFocus
                 />
+                <label className="form__label" htmlFor="dorse">
+                    Dorse Plakası:
+                </label>
                 <input
                     className={`form__input form__input--text ${validDorseClass}`}
                     id="dorse"
@@ -96,9 +101,11 @@ const NewNoteForm = () => {
                     type="text"
                     autoComplete="off"
                     value={dorse}
-                    placeholder="Dorse Plakası"
                     onChange={onDorseChanged}
                 />
+                <label className="form__label" htmlFor="firma">
+                    Firma:
+                </label>
                 <input
                     className={`form__input form__input--text`}
                     id="firma"
@@ -106,9 +113,11 @@ const NewNoteForm = () => {
                     type="text"
                     autoComplete="off"
                     value={firma}
-                    placeholder="Firma"
                     onChange={onFirmaChanged}
                 />
+                <label className="form__label" htmlFor="mal">
+                    Malın Cinsi:
+                </label>
                 <input
                     className={`form__input form__input--text `}
                     id="mal"
@@ -116,7 +125,6 @@ const NewNoteForm = () => {
                     type="text"
                     autoComplete="off"
                     value={mal}
-                    placeholder="Malın Cinsi"
                     onChange={onMalChanged}
                 />
             </form>

@@ -1,13 +1,13 @@
 import {useState, useEffect} from "react"
 import { useParams, useNavigate } from 'react-router-dom'
-import { useGetRaporQuery, useUpdateRaporMutation } from '../../app/api/notesApiSlice'
+import { useGetRaporQuery, useUpdateRaporMutation, useDeleteNoteMutation } from '../../app/api/notesApiSlice'
 import PulseLoader from 'react-spinners/PulseLoader'
 import useTitle from '../../hooks/useTitle'
 import { selectCurrentPage } from "../../app/appStore/pageSlice"
 import { useSelector} from 'react-redux'
 import useAuth from '../../hooks/useAuth'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSave } from '@fortawesome/free-solid-svg-icons'
+import { faSave, faTrashCan } from '@fortawesome/free-solid-svg-icons'
 import moment from 'moment'
 
 
@@ -61,23 +61,35 @@ const EditNoteForm = ({ note }) => {
     const onSaveRaporClicked = async () => {        
             await updateRapor({ id: note.id, user: username, dorse, getiren, goturen, firma, mal, girisTarihi, cikisTarihi, gumrukBilgi, gumrukBilgiTarihi, guncellemeTarihi: Date.now()})
         }
+    const [deleteNote, {
+            isSuccess: isDelSuccess,
+            isError: isDelError,
+        }] = useDeleteNoteMutation()
+    
+    const onDeleteNoteClicked = async () => {        
+        if(window.confirm("Silmek istediğinizden emin misiniz?") === true ) 
+           {await deleteNote({ id: note.id })}
+           else return
+    }
+
 
     useEffect(() => {
-            if (isSuccess) {
+            if (isSuccess || isDelSuccess) {
                 navigate('/dash/rapor')
             }
+            
     
-        }, [isSuccess, navigate])
+        }, [isSuccess, isDelSuccess, navigate])
 
-    /* let content    
+     let content    
 
-    if(isLoading) content = <p>Yükleniyor</p>
+    if(isLoading) content = <PulseLoader/>
     
-    if (isError) {
+    if (isError || isDelError) {
         content = <p className="errmsg">{error?.data?.message}</p>
-    } */
+    }
 
-    const content = (
+    content = (
         <div className='wrapper'>
         <div className="form_wrapper">           
             <div className="form__title-row">            
@@ -90,6 +102,13 @@ const EditNoteForm = ({ note }) => {
                             onClick={onSaveRaporClicked}
                         >
                             <FontAwesomeIcon icon={faSave} />
+                        </button>
+                        <button
+                            className="form__button danger__button"
+                            title="Sil"
+                            onClick={onDeleteNoteClicked}
+                        >
+                            <FontAwesomeIcon icon={faTrashCan} />
                         </button>
                     </div>
                 </div>}                                    
@@ -137,7 +156,7 @@ const EditNoteForm = ({ note }) => {
                     value={firma}
                 />
                 <label className="form__label" htmlFor="mal">
-                    Malın cinsi:</label>
+                    Malın Cinsi:</label>
                 <input
                     className={`form__input form__input--text`}
                     id="mal"

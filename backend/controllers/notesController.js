@@ -6,12 +6,16 @@ const Note = require('../models/Note')
 const getAllNotes = async (req, res) => {
     // Get all notes from MongoDB
     const sort = [['_id', -1]]
-    const notes = await Note.find({ cikisTarihi: { $exists: false} }).sort(sort).lean()    
+    try {
+        const notes = await Note.find({ cikisTarihi: { $exists: false} }).sort(sort).lean()    
     // If no notes 
-    if (!notes?.length) {
-        return res.status(400).json({ message: 'Kayıt bulunamadı' })
+        if (!notes?.length) {
+        return res.status(404).json({ message: 'Parkta Araç Yoktur. Araç Girişi Yapabilirsiniz' })
+        }
+        res.json(notes)
+    } catch (error) {
+        res.json({error})
     }
-    res.json(notes)
 }
 // @desc Create new note
 // @route POST /notes

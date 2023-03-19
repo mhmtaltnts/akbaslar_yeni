@@ -90,7 +90,7 @@ const PublicNote = ({ noteId }) => {
     }
 
     /* const yonClass = isAdmin || isManager ? "yonetici" : ""; */
-    const created = new Date(note.createdAt).toLocaleString('tr-TR', options)
+    const girisTarihi = new Date(note.girisTarihi).toLocaleString('tr-TR', options)
     if (note) {
         
         return (
@@ -98,7 +98,7 @@ const PublicNote = ({ noteId }) => {
                 <td className="table__cell mobile">{note.getiren}</td>
                 <td className="table__cell">{note.dorse}</td>
                 <td className="table__cell tablet">{note.firma}</td>
-                <td className="table__cell tablet">{created}</td>
+                <td className="table__cell tablet">{girisTarihi}</td>
             </tr>
         )
 

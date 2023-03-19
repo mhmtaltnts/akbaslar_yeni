@@ -9,16 +9,17 @@ const cikisNote = async (req, res) => {
         return res.status(400).json({ message: 'Tüm alanları doldurun' })
     }
     // Confirm note exists to update
-    const note = await Note.findById(id).exec()
-    if (!note) {
-        return res.status(400).json({ message: 'Kayıt Bulunamadı' })
+    try {
+        const note = await Note.findById(id).exec()
+        note.cikisYapan = user
+        note.goturen = goturen
+        note.cikisTarihi = cikisTarihi 
+        const updatedNote = await note.save()
+        res.json(`'${updatedNote.title}' güncellendi`)
+    } catch (error) {
+        return res.status(400).json({ error})
     }
-    note.cikisYapan = user
-    note.goturen = goturen
-    note.cikisTarihi = cikisTarihi  
-
-    const updatedNote = await note.save()
-    res.json(`'${updatedNote.title}' güncellendi`)
+    
 }
 
 module.exports = {

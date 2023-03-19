@@ -73,7 +73,9 @@ const EditNoteForm = ({ note }) => {
     }
 
     const onDeleteNoteClicked = async () => {
-        await deleteNote({ id: note.id })
+        if(window.confirm("Silmek istediğinizden emin misiniz?") === true ) 
+           {await deleteNote({ id: note.id })}
+           else return
     }
 
     const errClass = (isError || isDelError) ? "errmsg" : "offscreen"
@@ -119,7 +121,8 @@ const EditNoteForm = ({ note }) => {
 
             <form className="form" onSubmit={e => e.preventDefault()} autoComplete="off">
                 <label className="form__label" htmlFor="getiren">
-                    Getiren Çekici Plakası:</label>
+                    Getiren Çekici Plakası:
+                </label>
                 <input
                     className={`form__input ${validGetirenClass}`}
                     id="getiren"
@@ -132,7 +135,8 @@ const EditNoteForm = ({ note }) => {
                 />
 
                 <label className="form__label" htmlFor="dorse">
-                    Dorse Plakası:</label>
+                    Dorse Plakası:
+                </label>
                 <input
                     className={`form__input form__input--text ${validDorseClass}`}
                     id="dorse"
@@ -143,7 +147,8 @@ const EditNoteForm = ({ note }) => {
                     onChange={onDorseChanged}
                 />
                 <label className="form__label" htmlFor="firma">
-                    Firma:</label>
+                    Firma:
+                </label>
                 <input
                     className={`form__input form__input--text`}
                     id="firma"
@@ -154,7 +159,8 @@ const EditNoteForm = ({ note }) => {
                     onChange={onFirmaChanged}
                 />
                 <label className="form__label" htmlFor="mal">
-                    Malın cinsi:</label>
+                    Malın Cinsi:
+                </label>
                 <input
                     className={`form__input form__input--text`}
                     id="mal"
