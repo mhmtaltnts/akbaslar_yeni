@@ -8,40 +8,30 @@ import { useUpdateNoteMutation, useDeleteNoteMutation } from "../../app/api/note
 import { useNavigate } from "react-router-dom"
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSave, faTrashCan } from "@fortawesome/free-solid-svg-icons"
+import moment from "moment"
 
 
 const EditNote = () => {
     useTitle('Kayıt Düzenle')
-
     const { id } = useParams()
-
     const { username, isManager, isAdmin } = useAuth()
-
     const { note } = useGetNotesQuery("notesList", {
         selectFromResult: ({ data }) => ({
             note: data?.entities[id]
         }),
     })
-    if (!note) return <PulseLoader color={"#FFF"} />
-    
+    if (!note) return <PulseLoader color={"#FFF"} />    
     if (!isManager && !isAdmin) {
         if (note.username !== username) {
             return <p className="errmsg">Erişim Engeli</p>
         }
     }
-
-    const content = <EditNoteForm note={note} />
-    
-
+    const content = <EditNoteForm note={note} />    
     return content
 }
 
-
-
 const EditNoteForm = ({ note }) => {
-
     const { username, isManager, isAdmin } = useAuth()
-
     const [updateNote, {
         isLoading,
         isSuccess,
@@ -56,19 +46,17 @@ const EditNoteForm = ({ note }) => {
     }] = useDeleteNoteMutation()
 
     const navigate = useNavigate()
-
     const [getiren, setGetiren] = useState(note.getiren)
     const [dorse, setDorse] = useState(note.dorse)
     const [firma, setFirma] = useState(note.firma)
     const [mal, setMal] = useState(note.mal)
-    const [girisTarihi, setGirisTarihi] = useState(note.girisTarihi.substring(0,16))
+    const [girisTarihi, setGirisTarihi] = useState(moment(note.girisTarihi).format('YYYY-MM-DDTHH:mm')??"")
     
 
     useEffect(() => {
         if (isSuccess || isDelSuccess) {
             navigate('/dash/notes')
         }
-
     }, [isSuccess, isDelSuccess, navigate])
 
     const onGetirenChanged = e => setGetiren(e.target.value)
@@ -77,10 +65,7 @@ const EditNoteForm = ({ note }) => {
     const onMalChanged = e => setMal(e.target.value)
     const onGirisTarihiChanged = e => setGirisTarihi(e.target.value)
     
-    
-
     const canSave = [getiren, dorse].every(Boolean) && !isLoading
-
     const onSaveNoteClicked = async (e) => {
         if (canSave) {
             await updateNote({ id: note.id, user: username, getiren, dorse, firma, mal, girisTarihi, guncellemeTarihi: Date.now()})
@@ -91,15 +76,11 @@ const EditNoteForm = ({ note }) => {
         await deleteNote({ id: note.id })
     }
 
-
     const errClass = (isError || isDelError) ? "errmsg" : "offscreen"
     const validGetirenClass = !getiren ? "form__input--incomplete" : ''
     const validDorseClass = !dorse ? "form__input--incomplete" : ''
     
-    
-
     const errContent = (error?.data?.message || delerror?.data?.message) ?? ''
-
 
     let deleteButton = null
     if (isManager || isAdmin) {
@@ -197,10 +178,6 @@ const EditNoteForm = ({ note }) => {
         </div>
         </div>
     )
-
     return content
 }
-
-
-
 export default EditNote

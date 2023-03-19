@@ -10,7 +10,6 @@ import { useDispatch, useSelector } from 'react-redux'
 import { setPage } from '../../app/appStore/pageSlice'
 import { selectCurrentPage } from "../../app/appStore/pageSlice"
 import useAuth from '../../hooks/useAuth'
-import moment from "moment"
 
 const Rapor = () => {
     useTitle('Kayıt Listesi')
@@ -27,10 +26,6 @@ const Rapor = () => {
         error
     } = useGetRaporQuery(page)
     
-    
-    
-    //
-    /* const calClass = (isAdmin || isManager) ? "table-yonetici" : (status === "Memur") ? "table-memur" : "table-calisan"; */
     let content
 
     if (isLoading) content = <PulseLoader color={"#FFF"} />
@@ -42,17 +37,13 @@ const Rapor = () => {
     if (isSuccess) {
         let filteredIds
         const { ids, entities } = data?.notes
-        //entities.sort((a,b) => a.cikisTarihi === b.cikisTarihi ? 0 : a.cikisTarihi ? 1 : -1)
         let count = data?.pagination.count
         let pageCount= data?.pagination.pageCount
-        //let count = 10
         if(!search){
             filteredIds = [...ids]
-        } else{
-            
+        } else{            
             filteredIds = ids.filter(noteId => { return (entities[noteId].dorse !== undefined && entities[noteId].dorse.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].getiren !== undefined && entities[noteId].getiren.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].goturen !== undefined && entities[noteId].goturen.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].firma !== undefined && entities[noteId].firma.toLowerCase().includes(search.toLowerCase()))})
         }
-
         const handlePrevious = () => {
             let sayfa = page             
             if(sayfa === 1){
@@ -60,8 +51,6 @@ const Rapor = () => {
             }
             sayfa = sayfa - 1   
             dispatch(setPage({sayfa}))
-            
-        
         }
         const handleNext = () => {
             let sayfa = page             
@@ -70,7 +59,6 @@ const Rapor = () => {
             }
             sayfa = sayfa + 1   
             dispatch(setPage({sayfa}))
-            
         }
 
         const calClass = (isAdmin || isManager) ? "rapor-table-yonetici" : "rapor-table-calisan";
@@ -123,7 +111,7 @@ const Rapor = () => {
 
 const RaporNote = ({ noteId, page }) => {
     const { isManager, isAdmin} = useAuth()
-    const { note   } = useGetRaporQuery(page, {
+    const { note } = useGetRaporQuery(page, {
         selectFromResult: ({ data }) => ({
             note: data?.notes.entities[noteId]
         }),
@@ -149,7 +137,6 @@ const RaporNote = ({ noteId, page }) => {
                 </button>
             )
         }
-    
 
     if (note) {
 
@@ -164,7 +151,7 @@ const RaporNote = ({ noteId, page }) => {
 
         const cikisTarihi =note.cikisTarihi === undefined ? "" : new Date(note.cikisTarihi).toLocaleString('tr-TR', options)
 
-        const kaldigiGun =note.cikisTarihi === undefined ? "" : Math.ceil( (new Date(note.cikisTarihi).getTime() - new Date(note.girisTarihi).getTime())/(1000 * 3600 * 24))
+        const kaldigiGun =note.cikisTarihi === undefined ? "" : Math.round( (new Date(note.cikisTarihi).getTime() - new Date(note.girisTarihi).getTime())/(1000 * 3600 * 24))
 
         return (
             <tr className="table__row">

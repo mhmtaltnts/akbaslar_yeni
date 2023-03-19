@@ -1,16 +1,10 @@
 const Note = require('../models/Note')
-const User = require('../models/User')
+
 
 const NOTES_PER_PAGE = 100
-
 const rapor = async (req, res) => {
-
     const page = req.query.page || 1
-        
-
     try {
-        
-    
         const query = { cikisTarihi: { $exists: true} }
         const sort = {cikisTarihi: -1}
         const skip = (page-1) * NOTES_PER_PAGE
@@ -26,19 +20,14 @@ const rapor = async (req, res) => {
                 pageCount
             },
             notes
-        })
-
-        
+        })        
     } catch (error) {
-        res.json({error})
-        
+        res.json({error})        
     }
 }
 const updateRapor = async (req, res) => {
-
     const {id, user, dorse, getiren, goturen, firma, mal, girisTarihi, cikisTarihi, gumrukBilgi, gumrukBilgiTarihi, guncellemeTarihi} = req.body
     const note = await Note.findById(id).exec()
-
     if (!note) {
         return res.status(400).json({ message: 'Kayıt bulunamadı' })
     }
@@ -53,16 +42,11 @@ const updateRapor = async (req, res) => {
         note.cikisTarihi = cikisTarihi
         note.gumrukBilgi = gumrukBilgi
         note.gumrukBilgiTarihi = gumrukBilgiTarihi
-        note.guncellemeTarihi = guncellemeTarihi
-        
-
+        note.guncellemeTarihi = guncellemeTarihi 
         const updatedRapor = await note.save()
-
         res.json(`'${updatedRapor.dorse}' güncellendi`)
-
     } catch (error) {
-        res.json({error})
-        
+        res.json({error})        
     }    
 } 
 

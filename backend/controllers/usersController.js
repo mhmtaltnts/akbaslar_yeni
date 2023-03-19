@@ -57,39 +57,30 @@ const createNewUser = async (req, res) => {
 // @access Private
 const updateUser = async (req, res) => {
     const { id, fullName, username, roles, active, password } = req.body
-
     // Confirm data 
     if (!id || !username || !Array.isArray(roles) || !roles.length || typeof active !== 'boolean') {
         return res.status(400).json({ message: 'Şifre hariç diğer bütün alanlar doldurulmalı' })
     }
-
     // Does the user exist to update?
     const user = await User.findById(id).exec()
-
     if (!user) {
         return res.status(400).json({ message: 'Kullanıcı bulunamadı' })
     }
-
     // Check for duplicate 
     const duplicate = await User.findOne({ username }).collation({ locale: 'en', strength: 2 }).lean().exec()
-
     // Allow updates to the original user 
     if (duplicate && duplicate?._id.toString() !== id) {
         return res.status(409).json({ message: 'Bu isim kullanılıyor, başka isim deneyin.' })
     }
-
     user.fullName = fullName
     user.username = username
     user.roles = roles
     user.active = active
-
     if (password) {
         // Hash password 
         user.password = await bcrypt.hash(password, 10) // salt rounds 
     }
-
     const updatedUser = await user.save()
-
     res.json({ message: `${updatedUser.username} güncellendi` })
 }
 
@@ -98,30 +89,21 @@ const updateUser = async (req, res) => {
 // @access Private
 const deleteUser = async (req, res) => {
     const { id } = req.body
-
-    // Confirm data
     if (!id) {
         return res.status(400).json({ message: 'Kullanıcı ID gerekli' })
     }
-
-    /* // Does the user still have assigned notes?
-    const note = await Note.findOne({ user: id }).lean().exec()
-    if (note) {
-        return res.status(400).json({ message: 'Kullanıcı tarafından düzenlenmiş kayıtlar var' })
-    } */
-
-    // Does the user exist to delete?
     const user = await User.findById(id).exec()
-
     if (!user) {
         return res.status(400).json({ message: 'Kullanıcı bulunamadı' })
     }
-
-    const result = await user.deleteOne()
-
-    const reply = `${result.username} adında kullanıcı silindi`
-
-    res.json(reply)
+    try {
+        const result = await user.deleteOne()
+        const reply = `${result.username} adında kullanıcı silindi`
+        res.json({reply})
+    } catch (error) {
+        res.json({error})
+    }
+    
 }
 
 module.exports = {

@@ -20,7 +20,7 @@ const login = async (req, res) => {
 
   const match = await bcrypt.compare(password, foundUser.password);
 
-  if (!match) return res.status(401).json({ message: "Yetkisiz" });
+  if (!match) return res.status(401).json({ message: "Şifre Geçersiz" });
 
   const accessToken = jwt.sign(
     {
@@ -59,7 +59,7 @@ const login = async (req, res) => {
 const refresh = (req, res) => {
   const cookies = req.cookies;
 
-  if (!cookies?.jwt) return res.status(401).json({ message: "Yetkisiz" });
+  if (!cookies?.jwt) return res.status(401).json({ message: "Yetkisiz, Cookie sorunu" });
 
   const refreshToken = cookies.jwt;
 
@@ -67,7 +67,7 @@ const refresh = (req, res) => {
     refreshToken,
     process.env.REFRESH_TOKEN_SECRET,
     async (err, decoded) => {
-      if (err) return res.status(403).json({ message: "Yasaklı" });
+      if (err) return res.status(403).json({ message: "İmza snasında bir hata oluştu" });
 
       const foundUser = await User.findOne({
         username: decoded.username,

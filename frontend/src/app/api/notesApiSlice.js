@@ -5,7 +5,7 @@ import {
 import { apiSlice } from "./apiSlice"
 
 const notesAdapter = createEntityAdapter({
-    sortComparer: (a, b) => (a.createdAt > b.createdAt ? -1 :  1 )
+    sortComparer: (a, b) => (a.girisTarihi > b.girisTarihi ? -1 :  1 )
 })
 
 const raporAdapter = createEntityAdapter({
