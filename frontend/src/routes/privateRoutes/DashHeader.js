@@ -43,17 +43,18 @@ const DashHeader = () => {
     } */
 
   let newNoteButton = null;
-
-  if (NOTES_REGEX.test(pathname)) {
-    newNoteButton = (
-      <button
-        className="icon-button"
-        title="Yeni Kayıt"
-        onClick={onNewNoteClicked}
-      >
-        <FontAwesomeIcon icon={faFileCirclePlus} />
-      </button>
-    );
+  if (status !== 'Memur') {
+    if (NOTES_REGEX.test(pathname)) {
+      newNoteButton = (
+        <button
+          className="icon-button"
+          title="Yeni Kayıt"
+          onClick={onNewNoteClicked}
+        >
+          <FontAwesomeIcon icon={faFileCirclePlus} />
+        </button>
+      );
+    }
   }
 
   let newUserButton = null;
@@ -85,24 +86,28 @@ const DashHeader = () => {
   }
 
   let notesButton = null;
-
-  if (!NOTES_REGEX.test(pathname) && pathname.includes('/dash')) {
-    notesButton = (
-      <button className="icon-button" title="Kayıtlar" onClick={onNotesClicked}>
-        <FontAwesomeIcon icon={faFilePen} />
-      </button>
-    );
-  }
-
-  let raporButton = null;
   if (status !== 'Memur') {
-    if (!RAPOR_REGEX.test(pathname) && pathname.includes('/dash')) {
-      raporButton = (
-        <button className="icon-button" title="Rapor" onClick={onRaporClicked}>
-          <FontAwesomeIcon icon={faScroll} />
+    if (!NOTES_REGEX.test(pathname) && pathname.includes('/dash')) {
+      notesButton = (
+        <button
+          className="icon-button"
+          title="Kayıtlar"
+          onClick={onNotesClicked}
+        >
+          <FontAwesomeIcon icon={faFilePen} />
         </button>
       );
     }
+  }
+
+  let raporButton = null;
+
+  if (!RAPOR_REGEX.test(pathname) && pathname.includes('/dash')) {
+    raporButton = (
+      <button className="icon-button" title="Rapor" onClick={onRaporClicked}>
+        <FontAwesomeIcon icon={faScroll} />
+      </button>
+    );
   }
 
   const logoutButton = (
