@@ -43,18 +43,17 @@ const DashHeader = () => {
     } */
 
   let newNoteButton = null;
-  if (status !== 'Memur') {
-    if (NOTES_REGEX.test(pathname)) {
-      newNoteButton = (
-        <button
-          className="icon-button"
-          title="Yeni Kayıt"
-          onClick={onNewNoteClicked}
-        >
-          <FontAwesomeIcon icon={faFileCirclePlus} />
-        </button>
-      );
-    }
+
+  if (NOTES_REGEX.test(pathname)) {
+    newNoteButton = (
+      <button
+        className="icon-button"
+        title="Yeni Kayıt"
+        onClick={onNewNoteClicked}
+      >
+        <FontAwesomeIcon icon={faFileCirclePlus} />
+      </button>
+    );
   }
 
   let newUserButton = null;
