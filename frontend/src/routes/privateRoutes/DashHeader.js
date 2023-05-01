@@ -20,7 +20,6 @@ const RAPOR_REGEX = /^\/dash\/rapor(\/)?$/;
 
 const DashHeader = () => {
   const { isManager, isAdmin, status } = useAuth();
-
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -42,81 +41,10 @@ const DashHeader = () => {
         dashClass = "dash-header__container--small"
     } */
 
-    let newNoteButton = null
-    if (status !== "Memur") {
-        if (NOTES_REGEX.test(pathname)) {
-            newNoteButton = (
-                <button
-                    className="icon-button"
-                    title="Yeni Kayıt"
-                    onClick={onNewNoteClicked}
-                >
-                    <FontAwesomeIcon icon={faFileCirclePlus} />
-                </button>
-            )
-        }
-    }
-
-    let newUserButton = null
-    if (USERS_REGEX.test(pathname)) {
-        newUserButton = (
-            <button
-                className="icon-button"
-                title="Yeni Kullanıcı"
-                onClick={onNewUserClicked}
-            >
-                <FontAwesomeIcon icon={faUserPlus} />
-            </button>
-        )
-    }
-
-    let userButton = null
-    if (isManager || isAdmin) {
-        if (!USERS_REGEX.test(pathname) && pathname.includes('/dash')) {
-            userButton = (
-                <button
-                    className="icon-button"
-                    title="Kullanıcılar"
-                    onClick={onUsersClicked}
-                >
-                    <FontAwesomeIcon icon={faUserGear} />
-                </button>
-            )
-        }
-    }
-    
-
-    let notesButton = null
-    if (status !== "Memur") {
-    if (!NOTES_REGEX.test(pathname) && pathname.includes('/dash')) {
-        notesButton = (
-            <button
-                className="icon-button"
-                title="Kayıtlar"
-                onClick={onNotesClicked}
-            >
-                <FontAwesomeIcon icon={faFilePen} />
-            </button>
-        )
-    }
-}
-
-    let raporButton = null
-    
-    if (!RAPOR_REGEX.test(pathname) && pathname.includes('/dash')) {
-        raporButton = (
-            <button
-                className="icon-button"
-                title="Rapor"
-                onClick={onRaporClicked}
-            >
-                <FontAwesomeIcon icon={faScroll} />
-            </button>
-        )
-    }
-
-
-    const logoutButton = (
+  let newNoteButton = null;
+  if (status !== 'Memur') {
+    if (NOTES_REGEX.test(pathname)) {
+      newNoteButton = (
         <button
           className="icon-button"
           title="Yeni Kayıt"
