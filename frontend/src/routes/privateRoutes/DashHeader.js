@@ -110,7 +110,7 @@ const DashHeader = () => {
 }
 
     let raporButton = null
-    if (status !== "Memur") {
+    
     if (!RAPOR_REGEX.test(pathname) && pathname.includes('/dash')) {
         raporButton = (
             <button
@@ -122,7 +122,7 @@ const DashHeader = () => {
             </button>
         )
     }
-}
+
 
     const logoutButton = (
         <button
