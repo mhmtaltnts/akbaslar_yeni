@@ -56,6 +56,11 @@ function App() {
                 <Route path="gumruk">
                   <Route path=":id" element={<EditGumruk />} />
                 </Route>
+                <Route path="rapor">
+                  <Route index element={<Rapor />} />
+                  <Route path="detail/:id" element={<NoteDetail />} />
+                  <Route path="edit/:id" element={<EditRapor />} />
+                </Route>
 
                 <Route path="rapor">
                   <Route index element={<Rapor />} />
