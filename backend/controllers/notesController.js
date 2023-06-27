@@ -28,7 +28,7 @@ const createNewNote = async (req, res) => {
     }
  */
     // Create and store the new user 
-    const duplicate = await Note.findOne({ dorse })
+    const duplicate = await Note.findOne({ dorse: dorse, cikisTarihi:{$exists: false} })
     .lean()
     .exec();
 

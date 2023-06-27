@@ -44,7 +44,7 @@ const NewNoteForm = () => {
     }, [isSuccess, navigate])
 
     const onGetirenChanged = e => setGetiren(e.target.value)
-    const onDorseChanged = e => setDorse(e.target.value)
+    const onDorseChanged = e => setDorse((e.target.value).toUpperCase())
     const onFirmaChanged = e => setFirma(e.target.value)
     const onMalChanged = e => setMal(e.target.value)
     const canSave = [getiren, dorse].every(Boolean) && !isLoading
