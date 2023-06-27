@@ -42,7 +42,7 @@ const Rapor = () => {
         if(!search){
             filteredIds = [...ids]
         } else{            
-            filteredIds = ids.filter(noteId => { return (entities[noteId].dorse !== undefined && entities[noteId].dorse.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].getiren !== undefined && entities[noteId].getiren.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].goturen !== undefined && entities[noteId].goturen.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].firma !== undefined && entities[noteId].firma.toLowerCase().includes(search.toLowerCase()))})
+            filteredIds = ids.filter(noteId => { return (entities[noteId].dorse !== undefined && entities[noteId].dorse.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].getiren !== undefined && entities[noteId].getiren.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].goturen !== undefined && entities[noteId].goturen.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].firma !== undefined && entities[noteId].firma.toLowerCase().includes(search.toLowerCase()))|| (entities[noteId].mal !== undefined && entities[noteId].mal.toLowerCase().includes(search.toLowerCase()))|| (entities[noteId].gumrukBilgi !== undefined && entities[noteId].gumrukBilgi.toLowerCase().includes(search.toLowerCase())) || (entities[noteId].kaldigiGun !== undefined && entities[noteId].kaldigiGun.toLowerCase().includes(search.toLowerCase())) })
         }
         const handlePrevious = () => {
             let sayfa = page             
