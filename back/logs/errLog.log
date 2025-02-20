@@ -1,0 +1,5 @@
+20250207	23:31:54	bbfdc885-e882-45dc-919f-d90e0008993e	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/	http://localhost:3000
+20250207	23:32:54	858b2bbc-7d08-4791-8c78-5e314d7048a2	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/	http://localhost:3000
+20250215	23:16:54	be46d591-1892-49dd-a86d-2234cf83411a	Error: Not allowed by CORS	OPTIONS	/auth	http://localhost:5173
+20250215	23:17:33	603f8dc4-8626-4708-8950-de9a7541c03f	Error: Not allowed by CORS	OPTIONS	/auth	http://localhost:5173
+20250215	23:18:46	4b66001a-2f68-4342-abf2-101260faca5c	Error: Not allowed by CORS	OPTIONS	/auth	http://localhost:5173
