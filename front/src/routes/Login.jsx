@@ -57,18 +57,18 @@ const Login = () => {
 
   if (isLoading)
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex h-screen items-center justify-center">
         <PulseLoader color={"#FFF"} />
       </div>
     );
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 w-full max-w-lg ">
+    <div className="flex w-full max-w-lg flex-col items-center justify-center p-6">
       {/* Error Message */}
       {errMsg && (
         <p
           ref={errRef}
-          className="text-red-500 mb-4 text-lg"
+          className="mb-4 text-lg text-red-500"
           aria-live="assertive"
         >
           {errMsg}
@@ -77,7 +77,9 @@ const Login = () => {
 
       {/* Login Form */}
 
-      <h2 className="text-2xl font-bold text-center mb-4">Sisteme Giriş</h2>
+      <h2 className="mb-4 text-center text-xl font-bold md:text-2xl">
+        Sisteme Giriş
+      </h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Username Field */}
@@ -90,7 +92,7 @@ const Login = () => {
           autoComplete="off"
           placeholder="Kullanıcı Adı"
           required
-          className="bg-amber-50 w-full p-3 border border-gray-400 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+          className="w-full rounded-lg border border-gray-400 bg-amber-50 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
         />
 
         {/* Password Field */}
@@ -101,25 +103,25 @@ const Login = () => {
           onChange={handlePwdInput}
           placeholder="Şifre"
           required
-          className="bg-amber-50 w-full p-3 border border-gray-400 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700"
+          className="w-full rounded-lg border border-gray-400 bg-amber-50 p-3 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
         />
 
         {/* Login Button */}
         <button
           type="submit"
-          className="w-full bg-mavi hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition"
+          className="bg-mavi w-full rounded-lg py-2 font-semibold text-white transition hover:bg-blue-600"
         >
           Giriş Yap
         </button>
 
         {/* Remember Me Checkbox */}
-        <div className="flex items-center justify-center gap-2 mt-6">
+        <div className="mt-6 flex items-center justify-center gap-2">
           <input
             type="checkbox"
             id="persist"
             onChange={handleToggle}
             checked={persist}
-            className="w-5 h-5 accent-blue-500"
+            className="h-5 w-5 accent-blue-500"
           />
           <label htmlFor="persist" className="text-gray-600 dark:text-gray-300">
             Şifremi Kaydet

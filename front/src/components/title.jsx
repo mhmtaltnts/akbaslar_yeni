@@ -8,8 +8,8 @@ const Title = ({
   return (
     <h1
       className={cn(
-        "text-2xl font-bold text-center text-gray-900 dark:text-gray-200 p-2 mb-4",
-        className
+        "mb-4 p-2 text-center text-xl font-bold text-gray-900 dark:text-gray-200 md:text-2xl",
+        className,
       )}
     >
       {children}

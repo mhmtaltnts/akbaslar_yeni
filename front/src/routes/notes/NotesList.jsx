@@ -63,8 +63,8 @@ const NotesList = () => {
             "gumrukBilgi",
             "girisYapan",
           ].some((key) =>
-            entities[noteId][key]?.toLowerCase().includes(search.toLowerCase())
-          )
+            entities[noteId][key]?.toLowerCase().includes(search.toLowerCase()),
+          ),
         )
       : [...ids];
 
@@ -73,15 +73,15 @@ const NotesList = () => {
       filteredIds.map((noteId) => <Note key={noteId} noteId={noteId} />);
 
     content = (
-      <div className="flex flex-col items-center justify-center p-1 md:p-6 w-full max-w-[99%]">
-        <div className="flex justify-center gap-3 items-center mb-4 w-full">
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-900 bg-sari rounded-full px-1">
+      <div className="flex w-full max-w-[99%] flex-col items-center justify-center p-1 md:p-6">
+        <div className="mb-4 flex w-full items-center justify-center gap-3">
+          <h2 className="bg-sari rounded-full px-1 text-lg font-semibold text-gray-800 dark:text-gray-900">
             {count}
           </h2>
           <SearchBar setSearch={setSearch} />
         </div>
 
-        <div className="overflow-x-auto w-full max-w-screen">
+        <div className="max-w-screen w-full overflow-x-auto">
           <Table>
             <TableHead>
               <TableRow>
@@ -91,7 +91,9 @@ const NotesList = () => {
                   Firma
                 </TableHeader>
                 <TableHeader className="hidden md:table-cell">Yükü</TableHeader>
-                <TableHeader>Gümrük Bilgi</TableHeader>
+                <TableHeader className="hidden md:table-cell">
+                  Gümrük Bilgi
+                </TableHeader>
                 <TableHeader className="hidden md:table-cell">
                   Giriş Tarihi
                 </TableHeader>
@@ -132,7 +134,9 @@ const Note = ({ noteId }) => {
         <TableData>{note.dorse}</TableData>
         <TableData className="hidden md:table-cell">{note.firma}</TableData>
         <TableData className="hidden md:table-cell">{note.mal}</TableData>
-        <TableData>{note.gumrukBilgi}</TableData>
+        <TableData className="hidden md:table-cell">
+          {note.gumrukBilgi}
+        </TableData>
         <TableData>{girisTarihi}</TableData>
         <TableData className="hidden md:table-cell">
           {note.girisYapan}
@@ -141,7 +145,7 @@ const Note = ({ noteId }) => {
           <TableData className="p-0">
             <button
               onClick={() => navigate(`/dash/gumruk/${noteId}`)}
-              className="w-full h-full"
+              className="h-full w-full"
             >
               <FontAwesomeIcon icon={faPersonMilitaryPointing} />
             </button>
@@ -150,7 +154,7 @@ const Note = ({ noteId }) => {
         {status == "Çalışan" && (
           <TableData>
             <button
-              className="w-full h-full"
+              className="h-full w-full"
               onClick={() => navigate(`/dash/cikis/${noteId}`)}
             >
               <FontAwesomeIcon icon={faSignOut} />

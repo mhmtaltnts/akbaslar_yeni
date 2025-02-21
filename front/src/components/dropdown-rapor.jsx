@@ -50,7 +50,7 @@ const DropdownMenu = ({ handleEdit, handleDetail, handleDelete }) => {
         break;
       case "ArrowUp":
         setFocusedIndex(
-          (prev) => (prev - 1 + menuItems.length) % menuItems.length
+          (prev) => (prev - 1 + menuItems.length) % menuItems.length,
         );
         break;
       case "Enter":
@@ -97,7 +97,7 @@ const DropdownMenu = ({ handleEdit, handleDetail, handleDelete }) => {
       <button
         ref={triggerRef}
         onClick={toggleMenu}
-        className="w-12 h-12 flex items-center justify-center text-gray-600 dark:text-gray-300 rounded-lg focus:outline-none"
+        className="flex h-12 w-12 items-center justify-center rounded-lg text-gray-600 focus:outline-none dark:text-gray-300"
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
@@ -111,7 +111,7 @@ const DropdownMenu = ({ handleEdit, handleDetail, handleDelete }) => {
           role="menu"
           tabIndex="-1"
           onKeyDown={handleKeyDown}
-          className={`absolute w-48 bg-white dark:bg-gray-800 border divide-y z-50 ${
+          className={`absolute z-50 w-48 divide-y border bg-gray-100 dark:bg-gray-800 ${
             position === "bottom" ? "top-full mt-2" : "bottom-full mb-2"
           } right-0`}
         >
@@ -120,16 +120,16 @@ const DropdownMenu = ({ handleEdit, handleDetail, handleDelete }) => {
               key={item.label}
               role="menuitem"
               tabIndex="0"
-              className={`flex items-center gap-2 px-4 py-2 cursor-pointer ${
-                focusedIndex === index ? "bg-gray-100 dark:bg-gray-700" : ""
-              }`}
+              className={`flex cursor-pointer items-center gap-2 px-4 py-2 ${
+                focusedIndex === index ? "bg-gray-300 dark:bg-gray-800" : ""
+              } ${index % 2 === 0 ? "bg-mygray-100 dark:bg-gray-600" : "bg-mygray-200 dark:bg-gray-700"}`}
               onClick={() => {
                 item.action();
                 closeMenu();
               }}
               onMouseEnter={() => setFocusedIndex(index)}
             >
-              <FontAwesomeIcon icon={item.icon} className="w-4 h-4" />
+              <FontAwesomeIcon icon={item.icon} className="h-4 w-4" />
               {item.label}
             </li>
           ))}

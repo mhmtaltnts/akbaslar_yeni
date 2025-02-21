@@ -4,6 +4,14 @@ import useTitle from "../utils/hooks/useTitle";
 import PulseLoader from "react-spinners/PulseLoader";
 import SearchBar from "../components/SearchBar/SearchBar";
 import PropTypes from "prop-types";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const PublicNotesList = () => {
   useTitle("Kayıtları Listele");
@@ -54,33 +62,25 @@ const PublicNotesList = () => {
       filteredIds.map((noteId) => <PublicNote key={noteId} noteId={noteId} />);
 
     content = (
-      <div className=" p-6">
-        <div className="mb-4 flex align-items-center justify-center">
+      <div className="p-6">
+        <div className="align-items-center mb-4 flex justify-center">
           <SearchBar setSearch={setSearch} />
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full border border-gray-300 dark:border-gray-700 text-left">
-            <thead className="bg-gray-300 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-              <tr>
-                <th className="p-3 border-b border-gray-300 dark:border-gray-700">
-                  Getiren Çekici
-                </th>
-                <th className="p-3 border-b border-gray-300 dark:border-gray-700">
-                  Dorse Plakası
-                </th>
-                <th className="p-3 border-b border-gray-300 dark:border-gray-700">
-                  Firma
-                </th>
-                <th className="p-3 border-b border-gray-300 dark:border-gray-700">
-                  Giriş Tarihi
-                </th>
-              </tr>
-            </thead>
-            <tbody className="text-gray-900 dark:text-gray-100">
+          <Table className="w-full border border-gray-300 text-left dark:border-gray-700">
+            <TableHeader className="bg-gray-300 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+              <TableRow>
+                <TableHead>Çekici</TableHead>
+                <TableHead>Dorse</TableHead>
+                <TableHead className="hidden md:table-cell">Firma</TableHead>
+                <TableHead>Giriş Tarihi</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="text-gray-900 dark:text-gray-100">
               {tableContent}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     );
@@ -102,16 +102,16 @@ const PublicNote = ({ noteId }) => {
 
   const girisTarihi = new Date(note.girisTarihi).toLocaleString(
     "tr-TR",
-    options
+    options,
   );
   if (note) {
     return (
-      <tr className="border-b border-gray-300 dark:border-gray-700">
-        <td className="p-3">{note.getiren}</td>
-        <td className="p-3">{note.dorse}</td>
-        <td className="p-3">{note.firma}</td>
-        <td className="p-3">{girisTarihi}</td>
-      </tr>
+      <TableRow>
+        <TableCell className="p-3">{note.getiren}</TableCell>
+        <TableCell className="p-3">{note.dorse}</TableCell>
+        <TableCell className="hidden p-3 md:table-cell">{note.firma}</TableCell>
+        <TableCell className="p-3">{girisTarihi}</TableCell>
+      </TableRow>
     );
   } else return null;
 };

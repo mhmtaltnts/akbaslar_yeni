@@ -50,14 +50,14 @@ const NewNoteForm = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-6 w-full max-w-lg ">
+    <div className="flex w-full max-w-lg flex-col items-center justify-center p-6">
       <div className="w-full p-6">
         {isError && (
-          <p className="text-red-500 dark:text-red-400 text-sm mb-4">
+          <p className="mb-4 text-sm text-red-500 dark:text-red-400">
             {error?.data?.message}
           </p>
         )}
-        <Title>Yeni Park Girişi</Title>
+        <Title>Yeni Araç Girişi</Title>
         <form
           className="space-y-4"
           onSubmit={onSaveNoteClicked}
@@ -68,7 +68,7 @@ const NewNoteForm = () => {
               htmlFor="getiren"
               className="block text-sm font-medium text-gray-900 dark:text-gray-200"
             >
-              Getiren Çekici Plakası:
+              Getiren Çekici Plakası
             </label>
             <input
               id="getiren"
@@ -76,7 +76,7 @@ const NewNoteForm = () => {
               type="text"
               value={getiren}
               onChange={(e) => setGetiren(e.target.value.toUpperCase())}
-              className={`bg-amber-50 w-full border rounded-md p-2 mt-1  dark:bg-gray-700 dark:text-gray-200 ${
+              className={`mt-1 w-full rounded-md border bg-amber-50 p-2 dark:bg-gray-700 dark:text-gray-200 ${
                 !getiren
                   ? "border-red-500 dark:border-red-400"
                   : "border-gray-300 dark:border-gray-600"
@@ -89,7 +89,7 @@ const NewNoteForm = () => {
               htmlFor="dorse"
               className="block text-sm font-medium text-gray-900 dark:text-gray-200"
             >
-              Dorse Plakası:
+              Dorse Plakası
             </label>
             <input
               id="dorse"
@@ -97,7 +97,7 @@ const NewNoteForm = () => {
               type="text"
               value={dorse}
               onChange={(e) => setDorse(e.target.value.toUpperCase())}
-              className={`w-full border rounded-md p-2 mt-1 bg-amber-50 dark:bg-gray-700 dark:text-gray-200 ${
+              className={`mt-1 w-full rounded-md border bg-amber-50 p-2 dark:bg-gray-700 dark:text-gray-200 ${
                 !dorse
                   ? "border-red-500 dark:border-red-400"
                   : "border-gray-300 dark:border-gray-600"
@@ -109,7 +109,7 @@ const NewNoteForm = () => {
               htmlFor="firma"
               className="block text-sm font-medium text-gray-900 dark:text-gray-200"
             >
-              Firma:
+              Firma
             </label>
             <input
               id="firma"
@@ -117,7 +117,7 @@ const NewNoteForm = () => {
               type="text"
               value={firma}
               onChange={(e) => setFirma(e.target.value)}
-              className="w-full border rounded-md p-2 mt-1 border-gray-300 dark:border-gray-600 bg-amber-50 dark:bg-gray-700 dark:text-gray-200"
+              className="mt-1 w-full rounded-md border border-gray-300 bg-amber-50 p-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
             />
           </div>
           <div>
@@ -125,7 +125,7 @@ const NewNoteForm = () => {
               htmlFor="mal"
               className="block text-sm font-medium text-gray-900 dark:text-gray-200"
             >
-              Malın Cinsi:
+              Yükü
             </label>
             <input
               id="mal"
@@ -133,13 +133,13 @@ const NewNoteForm = () => {
               type="text"
               value={mal}
               onChange={(e) => setMal(e.target.value)}
-              className="w-full border rounded-md p-2 mt-1 border-gray-300 dark:border-gray-600 bg-amber-50 dark:bg-gray-700 dark:text-gray-200"
+              className="mt-1 w-full rounded-md border border-gray-300 bg-amber-50 p-2 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
             />
           </div>
-          <div className="flex justify-between items-center mb-6">
+          <div className="mb-6 flex items-center justify-between">
             <button
               type="submit"
-              className="w-full bg-yesil text-white px-4 py-2 rounded-md disabled:bg-gray-400 dark:bg-green-600 dark:disabled:bg-gray-500"
+              className="w-full rounded-md bg-yesil px-4 py-2 text-white disabled:bg-gray-400 dark:bg-green-600 dark:disabled:bg-gray-500"
               disabled={!canSave}
             >
               <FontAwesomeIcon icon={faSave} className="mr-2" /> Kaydet

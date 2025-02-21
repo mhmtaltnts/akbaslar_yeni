@@ -58,7 +58,7 @@ const EditUserForm = ({ user }) => {
   const onRolesChanged = (e) => {
     const values = Array.from(
       e.target.selectedOptions,
-      (option) => option.value
+      (option) => option.value,
     );
     setRoles(values);
   };
@@ -98,10 +98,10 @@ const EditUserForm = ({ user }) => {
   const errContent = error?.data?.message ?? "";
 
   const content = (
-    <div className="w-full max-w-xl mx-auto  p-6">
+    <div className="mx-auto w-full max-w-xl p-6">
       <p className={errClass}>{errContent}</p>
       <Title className="text-2xl font-semibold text-gray-800 dark:text-white">
-        Kullanıcı Düzenle
+        Kullanıcı Değiştir
       </Title>
 
       <form
@@ -115,10 +115,10 @@ const EditUserForm = ({ user }) => {
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             htmlFor="fullname"
           >
-            Adı Soyadı:
+            Adı Soyadı
           </label>
           <input
-            className="bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             id="fullname"
             name="fullname"
             type="text"
@@ -136,10 +136,10 @@ const EditUserForm = ({ user }) => {
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             htmlFor="username"
           >
-            Kullanıcı Adı:
+            Kullanıcı Adı
           </label>
           <input
-            className="bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             id="username"
             name="username"
             type="text"
@@ -155,10 +155,10 @@ const EditUserForm = ({ user }) => {
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             htmlFor="password"
           >
-            Şifre:
+            Şifre
           </label>
           <input
-            className="bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             id="password"
             name="password"
             type="password"
@@ -171,7 +171,7 @@ const EditUserForm = ({ user }) => {
         {/* Active Checkbox */}
         <div className="flex items-center">
           <input
-            className="bg-amber-50 mr-2 border border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500 dark:bg-gray-700"
+            className="mr-2 rounded border border-gray-300 bg-amber-50 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
             id="user-active"
             name="user-active"
             type="checkbox"
@@ -197,7 +197,7 @@ const EditUserForm = ({ user }) => {
           <select
             id="roles"
             name="roles"
-            className={`bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white ${validRolesClass}`}
+            className={`mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white ${validRolesClass}`}
             multiple={true}
             size="4"
             value={roles}
@@ -206,9 +206,9 @@ const EditUserForm = ({ user }) => {
             {options}
           </select>
         </div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <button
-            className="flex-1 p-2 bg-yesil text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
+            className="flex-1 rounded bg-yesil p-2 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
             title="Save"
             onClick={onSaveUserClicked}
             disabled={!canSave}

@@ -37,7 +37,7 @@ const NewUser = () => {
   const onRolesChanged = (e) => {
     const values = Array.from(
       e.target.selectedOptions,
-      (option) => option.value
+      (option) => option.value,
     );
     setRoles(values);
   };
@@ -66,7 +66,7 @@ const NewUser = () => {
   const validRolesClass = !roles.length ? "border-red-500" : "";
 
   const content = (
-    <div className="w-full max-w-lg mx-auto  p-6">
+    <div className="mx-auto w-full max-w-lg p-6">
       <p className={errClass}>{error?.data?.message}</p>
       <Title>Yeni Kullanıcı</Title>
       <form
@@ -80,10 +80,10 @@ const NewUser = () => {
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             htmlFor="fullname"
           >
-            Adı ve Soyadı:
+            Adı ve Soyadı
           </label>
           <input
-            className="bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             id="fullname"
             name="fullname"
             type="text"
@@ -101,10 +101,10 @@ const NewUser = () => {
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             htmlFor="username"
           >
-            Kullanıcı Adı:
+            Kullanıcı Adı
           </label>
           <input
-            className="bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             id="username"
             name="username"
             type="text"
@@ -121,10 +121,10 @@ const NewUser = () => {
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             htmlFor="password"
           >
-            Şifre:
+            Şifre
           </label>
           <input
-            className="bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             id="password"
             name="password"
             type="password"
@@ -141,12 +141,12 @@ const NewUser = () => {
             className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             htmlFor="roles"
           >
-            Rolleri:
+            Rolleri
           </label>
           <select
             id="roles"
             name="roles"
-            className={`bg-amber-50 mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white ${validRolesClass}`}
+            className={`mt-1 block w-full rounded-md border border-gray-300 bg-amber-50 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-700 dark:text-white ${validRolesClass}`}
             multiple={true}
             size="4"
             value={roles}
@@ -155,9 +155,9 @@ const NewUser = () => {
             {options}
           </select>
         </div>
-        <div className="flex justify-between items-center mb-6 ">
+        <div className="mb-6 flex items-center justify-between">
           <button
-            className="w-full p-2 bg-yesil text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
+            className="w-full rounded bg-yesil p-2 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700"
             title="Kaydet"
             disabled={!canSave}
           >

@@ -40,7 +40,7 @@ const UsersList = () => {
 
   if (isError) {
     content = (
-      <p className="text-red-500 dark:text-red-400 text-sm">
+      <p className="text-sm text-red-500 dark:text-red-400">
         {error?.data?.message}
       </p>
     );
@@ -53,10 +53,10 @@ const UsersList = () => {
       ids?.length && ids.map((userId) => <User key={userId} userId={userId} />);
 
     content = (
-      <div className="max-w-4xl mx-auto p-6 rounded-2xl">
-        <Title>Kullanıcılar Listesi</Title>
+      <div className="mx-auto max-w-4xl rounded-2xl p-6">
+        <Title>Kullanıcılar</Title>
 
-        <div className="overflow-x-auto ">
+        <div className="overflow-x-auto">
           <Table>
             <TableHead>
               <TableRow>
@@ -122,19 +122,19 @@ const User = ({ userId }) => {
         <TableData>
           <p className={errClass}>{errContent}</p>
           <button
-            className="bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+            className="rounded bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
             onClick={handleEdit}
           >
-            <FontAwesomeIcon icon={faPenToSquare} className="w-6 h-6" />
+            <FontAwesomeIcon icon={faPenToSquare} className="h-6 w-6" />
           </button>
         </TableData>
         <TableData>
           <button
-            className="p-2 bg-transparent text-kirmizi rounded  hover:text-gray-300 hover:bg-kirmizi dark:bg-transparent "
+            className="rounded bg-transparent p-2 text-kirmizi hover:bg-kirmizi hover:text-gray-300 dark:bg-transparent"
             title="Delete"
             onClick={onDeleteUserClicked}
           >
-            <FontAwesomeIcon icon={faTrashCan} className="w-6 h-6" />
+            <FontAwesomeIcon icon={faTrashCan} className="h-6 w-6" />
           </button>
         </TableData>
       </TableRow>

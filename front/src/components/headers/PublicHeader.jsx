@@ -22,17 +22,20 @@ const PublicHeader = () => {
   const onThemeClicked = () => dispatch(setTheme({ darkness: !dark }));
 
   return (
-    <header className="h-2x-header  w-full flex items-center justify-center py-4 px-6 ">
-      <div className="w-full max-w-6xl mx-auto flex flex-col items-center sm:flex-row sm:justify-between gap-3">
+    <header className="h-2x-header flex w-full items-center justify-center px-6 py-4">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
         {/* Logo */}
-        <Link to="/" className="text-3xl font-semibold  transition">
+        <Link to="/" className="text-3xl font-semibold transition">
           {import.meta.env.VITE_APP_TITLE}
         </Link>
 
         {/* Navigation Buttons */}
         <div className="flex items-center gap-4">
           {!ARACLAR_REGEX.test(pathname) && (
-            <Link className="text-2xl font-semibold transition" to="/araclar">
+            <Link
+              className="border px-1 text-xl font-semibold transition"
+              to="/araclar"
+            >
               Misafir Araçlar
             </Link>
           )}
