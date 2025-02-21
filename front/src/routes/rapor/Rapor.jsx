@@ -48,7 +48,7 @@ const Rapor = () => {
 
   if (isError) {
     content = (
-      <p className="text-red-500 dark:text-red-400 text-sm">
+      <p className="text-sm text-red-500 dark:text-red-400">
         {error?.data?.message}
       </p>
     );
@@ -122,24 +122,24 @@ const Rapor = () => {
       ));
 
     content = (
-      <div className="flex flex-col items-center justify-center p-2 w-full max-w-[99%] mt-6 ">
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full mb-4">
+      <div className="flex w-full max-w-[99%] flex-col items-center justify-center p-1 md:p-6">
+        <div className="mb-4 flex w-full flex-col items-center justify-center gap-4 md:flex-row">
           <SearchBar setSearch={setSearch} />
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold dark:text-black bg-sari rounded-full p-1">
+            <h2 className="rounded-full bg-sari p-1 text-xl font-semibold dark:text-black">
               {count}
             </h2>
             <button
               disabled={page === 1}
               onClick={() => dispatch(setPage({ sayfa: 1 }))}
-              className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-300 dark:disabled:bg-gray-600 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="rounded bg-blue-500 p-2 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-gray-600"
             >
               <FontAwesomeIcon icon={faAnglesLeft} />
             </button>
             <button
               disabled={page === 1}
               onClick={handlePrevious}
-              className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-300 dark:disabled:bg-gray-600 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="rounded bg-blue-500 p-2 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-gray-600"
             >
               <FontAwesomeIcon icon={faAngleLeft} />
             </button>
@@ -149,20 +149,20 @@ const Rapor = () => {
             <button
               disabled={page === pageCount}
               onClick={handleNext}
-              className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-300 dark:disabled:bg-gray-600 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="rounded bg-blue-500 p-2 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-gray-600"
             >
               <FontAwesomeIcon icon={faAngleRight} />
             </button>
             <button
               disabled={page === pageCount}
               onClick={() => dispatch(setPage({ sayfa: pageCount }))}
-              className="p-2 bg-blue-500 text-white rounded disabled:bg-gray-300 dark:disabled:bg-gray-600 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+              className="rounded bg-blue-500 p-2 text-white hover:bg-blue-600 disabled:bg-gray-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:disabled:bg-gray-600"
             >
               <FontAwesomeIcon icon={faAnglesRight} />
             </button>
           </div>
         </div>
-        <div className="overflow-x-auto w-full max-w-screen">
+        <div className="w-full max-w-screen overflow-x-auto">
           <Table>
             <TableHead>
               <TableRow>
@@ -227,7 +227,7 @@ const RaporNote = ({ noteId, page }) => {
     };
     const girisTarihi = new Date(note.girisTarihi).toLocaleString(
       "tr-TR",
-      options
+      options,
     );
 
     const cikisTarihi =
@@ -240,7 +240,7 @@ const RaporNote = ({ noteId, page }) => {
         ? ""
         : calculateDaysBetweenDates(
             new Date(note.cikisTarihi).getTime(),
-            new Date(note.girisTarihi).getTime()
+            new Date(note.girisTarihi).getTime(),
           );
 
     return (
