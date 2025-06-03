@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import PropTypes from "prop-types";
 import {
@@ -7,11 +7,13 @@ import {
   faTrashCan,
   faCaretDown,
 } from "@fortawesome/free-solid-svg-icons";
+import { createPortal } from "react-dom";
 
 const DropdownMenu = ({ handleEdit, handleDetail, handleDelete }) => {
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
-  const [position, setPosition] = useState("bottom");
+
   const menuRef = useRef(null);
   const triggerRef = useRef(null);
 
@@ -66,17 +68,32 @@ const DropdownMenu = ({ handleEdit, handleDetail, handleDelete }) => {
   };
 
   const adjustDropdownPosition = () => {
-    if (!triggerRef.current) return;
-    const triggerRect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - triggerRect.bottom;
-    const spaceAbove = triggerRect.top;
+    const trigger = triggerRef.current;
+    const menu = menuRef.current;
 
-    if (spaceBelow < 150 && spaceAbove > spaceBelow) {
-      setPosition("top");
-    } else {
-      setPosition("bottom");
+    if (trigger && menu) {
+      const triggerRect = trigger.getBoundingClientRect();
+      const menuWidth = menu.offsetWidth || 192; // fallback width if not rendered
+      const spaceRight = window.innerWidth - triggerRect.left;
+
+      let left = triggerRect.left + window.scrollX;
+
+      // If dropdown would overflow to the right, align it from the right
+      if (spaceRight < menuWidth) {
+        left = triggerRect.right - menuWidth + window.scrollX;
+      }
+
+      const top = triggerRect.bottom + window.scrollY;
+
+      setCoords({ top, left });
     }
   };
+
+  useLayoutEffect(() => {
+    if (isOpen) {
+      adjustDropdownPosition();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -92,56 +109,57 @@ const DropdownMenu = ({ handleEdit, handleDetail, handleDelete }) => {
   }, []);
 
   return (
-    <div className="relative inline-block">
-      {/* Dropdown Trigger */}
+    <>
+      {/* Trigger button stays in original DOM flow (e.g. inside table cell) */}
       <button
         ref={triggerRef}
         onClick={toggleMenu}
-        className="flex h-12 w-12 items-center justify-center rounded-lg text-gray-600 focus:outline-none dark:text-gray-300"
+        onKeyDown={handleKeyDown}
+        className="flex h-12 w-12 cursor-pointer items-center justify-center bg-inherit text-center"
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
-        <FontAwesomeIcon icon={faEllipsis} className="text-xl" />
+        <FontAwesomeIcon icon={faEllipsis} className="text-2xl" />
       </button>
 
-      {/* Dropdown Menu */}
-      {isOpen && (
-        <ul
-          ref={menuRef}
-          role="menu"
-          tabIndex="-1"
-          onKeyDown={handleKeyDown}
-          className={`absolute z-50 w-48 divide-y border bg-gray-100 dark:bg-gray-800 ${
-            position === "bottom" ? "top-full mt-2" : "bottom-full mb-2"
-          } right-0`}
-        >
-          {menuItems.map((item, index) => (
-            <li
-              key={item.label}
-              role="menuitem"
-              tabIndex="0"
-              className={`flex cursor-pointer items-center gap-2 px-4 py-2 ${
-                focusedIndex === index ? "bg-gray-300 dark:bg-gray-800" : ""
-              } ${index % 2 === 0 ? "bg-mygray-100 dark:bg-gray-600" : "bg-mygray-200 dark:bg-gray-700"}`}
-              onClick={() => {
-                item.action();
-                closeMenu();
-              }}
-              onMouseEnter={() => setFocusedIndex(index)}
-            >
-              <FontAwesomeIcon icon={item.icon} className="h-4 w-4" />
-              {item.label}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      {/* Dropdown menu rendered in portal */}
+      {isOpen &&
+        createPortal(
+          <ul
+            ref={menuRef}
+            className="absolute z-50 w-48 divide-y border bg-white shadow-lg dark:bg-gray-800"
+            style={{ top: coords.top, left: coords.left, position: "absolute" }}
+            role="menu"
+          >
+            {menuItems.map((item, index) => (
+              <li
+                key={item.label}
+                role="menuitem"
+                tabIndex="0"
+                className={`flex cursor-pointer items-center gap-2 px-4 py-2 ${
+                  focusedIndex === index
+                    ? "bg-gray-300 dark:bg-gray-800"
+                    : index % 2 === 0
+                      ? "bg-mygray-100 dark:bg-gray-600"
+                      : "bg-mygray-200 dark:bg-gray-700"
+                }`}
+                onClick={() => {
+                  item.action();
+                  closeMenu();
+                }}
+                onMouseEnter={() => setFocusedIndex(index)}
+              >
+                <FontAwesomeIcon icon={item.icon} className="h-4 w-4" />
+                {item.label}
+              </li>
+            ))}
+          </ul>,
+          document.getElementById("dropdown-portal"),
+        )}
+    </>
   );
 };
 DropdownMenu.propTypes = {
-  isAdmin: PropTypes.bool.isRequired,
-  isManager: PropTypes.bool.isRequired,
-  status: PropTypes.string.isRequired,
   handleEdit: PropTypes.func.isRequired,
   handleDetail: PropTypes.func.isRequired,
   handleDelete: PropTypes.func.isRequired,
