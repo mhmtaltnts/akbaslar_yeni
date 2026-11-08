@@ -1,5 +1,6 @@
-20250207	23:31:54	bbfdc885-e882-45dc-919f-d90e0008993e	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/	http://localhost:3000
-20250207	23:32:54	858b2bbc-7d08-4791-8c78-5e314d7048a2	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/	http://localhost:3000
-20250215	23:16:54	be46d591-1892-49dd-a86d-2234cf83411a	Error: Not allowed by CORS	OPTIONS	/auth	http://localhost:5173
-20250215	23:17:33	603f8dc4-8626-4708-8950-de9a7541c03f	Error: Not allowed by CORS	OPTIONS	/auth	http://localhost:5173
-20250215	23:18:46	4b66001a-2f68-4342-abf2-101260faca5c	Error: Not allowed by CORS	OPTIONS	/auth	http://localhost:5173
+20261108	13:22:35	6fe49bc6-c025-4b55-9b32-cbebae87dbad	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/rate-limit-check
+20261108	13:22:35	a55f57d5-fdda-4940-a04c-ee6d3f020094	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/rate-limit-check
+20261108	13:49:07	9eb77a1a-6ab6-4a8a-9c1b-021d06276093	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/login
+20261108	13:49:07	d47e43f2-5e0f-4688-9345-c0e81fdce47a	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/login
+20261108	13:49:07	5f95aae8-e509-4453-8d89-29908776a2d6	Too Many Requests: Too many login attempts from this IP, please try again after a 60 second pause	POST	/login
+20261108	15:16:26	b4c70e46-8194-41b6-9661-54c69ad50230	Internal: Sunucu hatası

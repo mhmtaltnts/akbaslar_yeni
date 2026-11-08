@@ -1,0 +1,32 @@
+# Mongo'daki "bana bir URI ver, sunucu zaten orada" kolaylığının aksine,
+# Postgres'i yerelde kendimiz ayağa kaldırıyoruz. Bu dosya sadece geliştirme
+# ortamı için: `docker compose up -d` ile bir Postgres konteyneri başlatır.
+#
+# NOT: Bu makinede zaten başka projelere ait Postgres konteynerleri 5432 ve
+# 5433 portlarında çalışıyor, o yüzden çakışmamak için 5434 kullanıyoruz.
+#
+# `name:` BİLİNÇLİ OLARAK sabit: Docker Compose'un proje adı varsayılan
+# olarak içinde bulunduğu klasörün adından gelir, bu da named volume'ların
+# (örn. akbaslar_pg_data) adını etkiler. Klasör `back-rust` iken bu proje
+# `back` olarak yeniden adlandırıldı; `name:` sabitlenmeseydi sonraki bir
+# `docker compose up` eski veriyi (`back-rust_akbaslar_pg_data`) göz ardı
+# edip SIFIRDAN boş bir volume oluştururdu. Hâlihazırda ÇALIŞAN konteyner ve
+# volume `back-rust` adıyla oluşturulduğu için, veriyi taşımaya gerek
+# kalmasın diye o ismi bilerek koruyoruz.
+name: back-rust
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: akbaslar_postgres
+    environment:
+      POSTGRES_USER: akbaslar
+      POSTGRES_PASSWORD: akbaslar
+      POSTGRES_DB: akbaslar
+    ports:
+      - "5434:5432"
+    volumes:
+      - akbaslar_pg_data:/var/lib/postgresql/data
+
+volumes:
+  akbaslar_pg_data:
