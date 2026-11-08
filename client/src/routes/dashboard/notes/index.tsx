@@ -31,6 +31,7 @@ import useTitle from "@/utils/hooks/useTitle";
 import defineAbilityFor from "@/utils/permission";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
+  Building2,
   FileCheck2,
   LogOut,
   MoreHorizontal,
@@ -45,12 +46,12 @@ export const Route = createFileRoute("/dashboard/notes/")({
   component: RouteComponent,
 });
 
-const SEARCH_KEYS = ["dorse", "getiren", "firma", "mal", "gumrukBilgi", "girisYapan"] as const;
+const SEARCH_KEYS = ["dorse", "getiren", "firma", "mal", "gumrukBilgi", "girisYapan", "parkName"] as const;
 
 function RouteComponent() {
   useTitle("Parktaki Araçlar");
   const [search, setSearch] = useState("");
-  const { roles } = useAuth();
+  const { roles, isOfficer } = useAuth();
   const ability = defineAbilityFor(roles);
 
   const { data: notes = [], isLoading, isSuccess, isError, error } = useQuery({
@@ -71,7 +72,11 @@ function RouteComponent() {
       <PageHeader
         title="Parktaki Araçlar"
         description={
-          isSuccess ? `Şu anda parkta ${notes.length} araç bulunuyor.` : "Çıkışı yapılmamış araçlar"
+          !isSuccess
+            ? "Çıkışı yapılmamış araçlar"
+            : isOfficer
+              ? `Yetkili olduğunuz otoparklarda ${notes.length} araç bulunuyor, ${notes.filter((n) => !n.gumrukBilgi).length} tanesi gümrük bekliyor.`
+              : `Şu anda parkta ${notes.length} araç bulunuyor.`
         }
         actions={
           ability.can("create", "notes") && (
@@ -108,7 +113,11 @@ function RouteComponent() {
           <EmptyState
             icon={Truck}
             title="Parkta araç yok"
-            description="Yeni bir araç girişi yaparak başlayabilirsiniz."
+            description={
+              isOfficer
+                ? "Yetkili olduğunuz otoparklarda bekleyen araç bulunmuyor."
+                : "Yeni bir araç girişi yaparak başlayabilirsiniz."
+            }
             action={
               ability.can("create", "notes") && (
                 <Button asChild size="sm">
@@ -129,7 +138,8 @@ function RouteComponent() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    <TableHead className="pl-4">Dorse</TableHead>
+                    {isOfficer && <TableHead className="pl-4">Otopark</TableHead>}
+                    <TableHead className={isOfficer ? undefined : "pl-4"}>Dorse</TableHead>
                     <TableHead>Çekici</TableHead>
                     <TableHead>Firma / Yük</TableHead>
                     <TableHead>Gümrük</TableHead>
@@ -141,7 +151,12 @@ function RouteComponent() {
                 <TableBody>
                   {filtered.map((note) => (
                     <TableRow key={note.id}>
-                      <TableCell className="pl-4">
+                      {isOfficer && (
+                        <TableCell className="max-w-44 pl-4">
+                          <span className="block truncate font-medium">{note.parkName}</span>
+                        </TableCell>
+                      )}
+                      <TableCell className={isOfficer ? undefined : "pl-4"}>
                         <Plate value={note.dorse} />
                       </TableCell>
                       <TableCell>
@@ -176,6 +191,11 @@ function RouteComponent() {
                 <li key={note.id} className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1.5">
+                      {isOfficer && note.parkName && (
+                        <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+                          <Building2 className="size-3.5" /> {note.parkName}
+                        </p>
+                      )}
                       <Plate value={note.dorse} />
                       <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
                         <Truck className="size-3.5" /> <Plate value={note.getiren} size="sm" />

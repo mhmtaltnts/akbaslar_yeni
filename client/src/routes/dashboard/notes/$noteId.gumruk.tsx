@@ -7,6 +7,7 @@ import { ErrorAlert, Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage } from "@/lib/format";
+import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, Save } from "lucide-react";
@@ -26,6 +27,7 @@ function RouteComponent() {
 
 function GumrukForm({ note }: { note: Note }) {
   const navigate = useNavigate();
+  const { isOfficer } = useAuth();
   const gumruk = useGumruk();
   const [gumrukBilgi, setGumrukBilgi] = useState(note.gumrukBilgi ?? "");
 
@@ -63,7 +65,7 @@ function GumrukForm({ note }: { note: Note }) {
       }
     >
       {gumruk.isError && <ErrorAlert message={apiErrorMessage(gumruk.error)} />}
-      <NoteSummary note={note} />
+      <NoteSummary note={note} showPark={isOfficer} />
       <Field label="Gümrük kaydı *" htmlFor="gumrukBilgi">
         <Textarea
           id="gumrukBilgi"

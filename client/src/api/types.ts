@@ -17,6 +17,8 @@ export type Note = {
   gumrukBilgiTarihi?: number | null;
   cikisTarihi?: number | null;
   guncellemeTarihi?: number | null;
+  // Aracın bulunduğu otopark; sadece parktaki araçlar listesinde gelir.
+  parkName?: string | null;
 };
 
 export type User = {
@@ -33,6 +35,16 @@ export type Tenant = {
   slug: string;
   address?: string | null;
   active: boolean;
+};
+
+// Gümrük memuru ve SüperAdmin'in ona verdiği ek otopark izinleri.
+export type Officer = {
+  id: string;
+  fullname: string;
+  username: string;
+  homeParkId: string;
+  homeParkName: string;
+  parkIds: string[];
 };
 
 export type PublicPark = { name: string; slug: string; address?: string | null };

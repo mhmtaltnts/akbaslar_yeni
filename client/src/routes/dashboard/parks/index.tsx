@@ -1,5 +1,5 @@
-import { tenantsQuery, useAddTenant, useUpdateTenant } from "@/api/tenants";
-import type { Tenant } from "@/api/types";
+import { officersQuery, tenantsQuery, useAddTenant, useSetOfficerParks, useUpdateTenant } from "@/api/tenants";
+import type { Officer, Tenant } from "@/api/types";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ErrorAlert, Field, PageHeader, PageLoader } from "@/components/app/page";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute } from "@tanstack/react-router";
-import { Building2, ExternalLink, Loader2, MapPin, Pencil, Plus, ShieldX, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, ExternalLink, Loader2, MapPin, Pencil, Plus, ShieldX, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -59,7 +59,120 @@ function ParksPage() {
           ))}
         </div>
       )}
+
+      {tenants && <OfficersSection tenants={tenants} />}
     </>
+  );
+}
+
+// Gümrük memurlarının erişebileceği otoparklar. Memur kendi otoparkına her
+// zaman erişir; burada SüperAdmin ek otoparkları açar. Memur bu parklarda
+// sadece araçları görür ve gümrük bilgisi girer.
+function OfficersSection({ tenants }: { tenants: Tenant[] }) {
+  const { data: officers, isLoading, isError, error } = useQuery(officersQuery);
+
+  return (
+    <section className="mt-10">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold">Gümrük Memurları</h2>
+        <p className="text-muted-foreground text-sm">
+          Memurlar seçili otoparklardaki araçları görür ve sadece gümrük bilgisi girer. Araç
+          giriş/çıkışı, rapor ve kullanıcı yönetimine erişemezler.
+        </p>
+      </div>
+      {isLoading && <PageLoader />}
+      {isError && <ErrorAlert message={apiErrorMessage(error)} />}
+      {officers?.length === 0 && (
+        <EmptyState
+          icon={BadgeCheck}
+          title="Henüz gümrük memuru yok"
+          description="Bir otoparkın Kullanıcılar sayfasından “Memur” rolüyle kullanıcı ekleyin."
+        />
+      )}
+      {officers && officers.length > 0 && (
+        <div className="space-y-4">
+          {officers.map((o) => (
+            <OfficerCard key={o.id} officer={o} tenants={tenants} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function OfficerCard({ officer, tenants }: { officer: Officer; tenants: Tenant[] }) {
+  const [selected, setSelected] = useState<string[]>(officer.parkIds);
+  const setParks = useSetOfficerParks();
+  const dirty =
+    selected.length !== officer.parkIds.length || selected.some((id) => !officer.parkIds.includes(id));
+
+  const toggle = (id: string) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const save = () =>
+    setParks.mutate(
+      { userId: officer.id, parkIds: selected },
+      {
+        onSuccess: (res) => toast.success(res.message),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+
+  return (
+    <div className="bg-card rounded-xl border shadow-xs">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-5 py-3">
+        <p className="font-medium">{officer.fullname}</p>
+        <p className="text-muted-foreground font-mono text-xs">{officer.username}</p>
+        <p className="text-muted-foreground ml-auto text-xs">
+          {selected.length + 1} otoparka erişim
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2 p-4">
+        {tenants.map((t) => {
+          const isHome = t.id === officer.homeParkId;
+          const on = isHome || selected.includes(t.id);
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="checkbox"
+              aria-checked={on}
+              disabled={isHome}
+              title={isHome ? "Memurun kayıtlı olduğu otopark: her zaman erişebilir" : undefined}
+              onClick={() => toggle(t.id)}
+              className={cn(
+                "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                on ? "border-primary bg-primary/5 text-foreground" : "text-muted-foreground hover:bg-muted/50",
+                isHome && "cursor-default opacity-80",
+                !t.active && "border-dashed",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-4 items-center justify-center rounded-full border",
+                  on ? "border-primary bg-primary text-primary-foreground" : "border-input",
+                )}
+              >
+                {on && <Check className="size-3" strokeWidth={3} />}
+              </span>
+              {t.name}
+              {isHome && <span className="text-muted-foreground text-xs">(kendi otoparkı)</span>}
+              {!t.active && <span className="text-destructive text-xs">(askıda)</span>}
+            </button>
+          );
+        })}
+      </div>
+      {dirty && (
+        <div className="bg-muted/30 flex justify-end gap-2 border-t px-4 py-3">
+          <Button size="sm" variant="ghost" onClick={() => setSelected(officer.parkIds)}>
+            Vazgeç
+          </Button>
+          <Button size="sm" onClick={save} disabled={setParks.isPending}>
+            {setParks.isPending && <Loader2 className="animate-spin" />} Kaydet
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

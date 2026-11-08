@@ -1,6 +1,6 @@
 import { useToken } from "@/lib/auth";
 import { jwtDecode } from "jwt-decode";
-import { SUPER_ADMIN, type Roles } from "../config/roles";
+import { SUPER_ADMIN, isOfficer, type Roles } from "../config/roles";
 
 type AccessToken = {
   UserInfo: {
@@ -42,6 +42,8 @@ const useAuth = () => {
       isManager,
       isAdmin,
       isSuperAdmin,
+      // Gümrük memuru: birden çok otoparkın araçlarını görebilir.
+      isOfficer: isOfficer(roles),
       tenantId,
       tenantName,
     };
@@ -53,6 +55,7 @@ const useAuth = () => {
     isManager,
     isAdmin,
     isSuperAdmin: false,
+    isOfficer: false,
     status,
     tenantId: undefined,
     tenantName: undefined,

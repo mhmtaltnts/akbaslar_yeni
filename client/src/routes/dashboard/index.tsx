@@ -59,7 +59,7 @@ function RouteComponent() {
     {
       to: "/dashboard/notes",
       title: "Parktaki araçlar",
-      desc: "Çıkış ve gümrük işlemleri",
+      desc: ability.can("update", "notes", "all") ? "Çıkış ve gümrük işlemleri" : "Gümrük işlemleri",
       icon: Truck,
     },
     ability.can("read", "rapor") && {
