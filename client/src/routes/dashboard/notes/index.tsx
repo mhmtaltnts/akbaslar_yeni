@@ -1,4 +1,6 @@
-import { useGetNotesQuery } from "@/api/notesApiSlice";
+import { notesQuery } from "@/api/notes";
+import type { Note } from "@/api/types";
+import { useQuery } from "@tanstack/react-query";
 import {
   EmptyState,
   ErrorAlert,
@@ -39,19 +41,9 @@ import {
 import { useState } from "react";
 
 export const Route = createFileRoute("/dashboard/notes/")({
+  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
   component: RouteComponent,
 });
-
-type Note = {
-  id: string;
-  getiren: string;
-  dorse: string;
-  firma?: string | null;
-  mal?: string | null;
-  gumrukBilgi?: string | null;
-  girisYapan?: string | null;
-  girisTarihi?: number | null;
-};
 
 const SEARCH_KEYS = ["dorse", "getiren", "firma", "mal", "gumrukBilgi", "girisYapan"] as const;
 
@@ -61,16 +53,12 @@ function RouteComponent() {
   const { roles } = useAuth();
   const ability = defineAbilityFor(roles);
 
-  const { data, isLoading, isSuccess, isError, error } = useGetNotesQuery("notesList", {
-    pollingInterval: 15000,
-    refetchOnFocus: true,
-    refetchOnMountOrArgChange: true,
+  const { data: notes = [], isLoading, isSuccess, isError, error } = useQuery({
+    ...notesQuery,
+    refetchInterval: 15000,
   });
 
-  // Park boşken backend 404 + mesaj döner: hata değil, boş durum.
-  const isEmpty = isError && (error as { status?: number })?.status === 404;
-
-  const notes: Note[] = isSuccess ? data.ids.map((id: string) => data.entities[id]) : [];
+  const isEmpty = isSuccess && notes.length === 0;
   const q = search.toLocaleLowerCase("tr-TR");
   const filtered = q
     ? notes.filter((n) =>
@@ -111,7 +99,7 @@ function RouteComponent() {
         </div>
 
         {isLoading && <PageLoader />}
-        {isError && !isEmpty && (
+        {isError && (
           <div className="p-4">
             <ErrorAlert message={apiErrorMessage(error)} />
           </div>
@@ -130,7 +118,7 @@ function RouteComponent() {
             }
           />
         )}
-        {isSuccess && filtered.length === 0 && (
+        {isSuccess && !isEmpty && filtered.length === 0 && (
           <EmptyState title="Sonuç bulunamadı" description={`"${search}" ile eşleşen araç yok.`} />
         )}
 

@@ -22,8 +22,8 @@ import { Route as DashboardRaporIndexRouteImport } from './routes/dashboard/rapo
 import { Route as DashboardParksIndexRouteImport } from './routes/dashboard/parks/index'
 import { Route as DashboardNotesIndexRouteImport } from './routes/dashboard/notes/index'
 import { Route as DashboardUsersNewRouteImport } from './routes/dashboard/users/new'
-import { Route as DashboardRaporNoteIdRouteImport } from './routes/dashboard/rapor/$noteId'
 import { Route as DashboardNotesNewRouteImport } from './routes/dashboard/notes/new'
+import { Route as DashboardRaporNoteIdIndexRouteImport } from './routes/dashboard/rapor/$noteId.index'
 import { Route as DashboardUsersUserIdEditRouteImport } from './routes/dashboard/users/$userId.edit'
 import { Route as DashboardRaporNoteIdEditRouteImport } from './routes/dashboard/rapor/$noteId.edit'
 import { Route as DashboardNotesNoteIdGumrukRouteImport } from './routes/dashboard/notes/$noteId.gumruk'
@@ -94,16 +94,17 @@ const DashboardUsersNewRoute = DashboardUsersNewRouteImport.update({
   path: '/users/new',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
-const DashboardRaporNoteIdRoute = DashboardRaporNoteIdRouteImport.update({
-  id: '/rapor/$noteId',
-  path: '/rapor/$noteId',
-  getParentRoute: () => DashboardRouteRoute,
-} as any)
 const DashboardNotesNewRoute = DashboardNotesNewRouteImport.update({
   id: '/notes/new',
   path: '/notes/new',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
+const DashboardRaporNoteIdIndexRoute =
+  DashboardRaporNoteIdIndexRouteImport.update({
+    id: '/rapor/$noteId/',
+    path: '/rapor/$noteId/',
+    getParentRoute: () => DashboardRouteRoute,
+  } as any)
 const DashboardUsersUserIdEditRoute =
   DashboardUsersUserIdEditRouteImport.update({
     id: '/users/$userId/edit',
@@ -112,9 +113,9 @@ const DashboardUsersUserIdEditRoute =
   } as any)
 const DashboardRaporNoteIdEditRoute =
   DashboardRaporNoteIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => DashboardRaporNoteIdRoute,
+    id: '/rapor/$noteId/edit',
+    path: '/rapor/$noteId/edit',
+    getParentRoute: () => DashboardRouteRoute,
   } as any)
 const DashboardNotesNoteIdGumrukRoute =
   DashboardNotesNoteIdGumrukRouteImport.update({
@@ -144,7 +145,6 @@ export interface FileRoutesByFullPath {
   '/notes-list': typeof PublicNotesListRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/notes/new': typeof DashboardNotesNewRoute
-  '/dashboard/rapor/$noteId': typeof DashboardRaporNoteIdRouteWithChildren
   '/dashboard/users/new': typeof DashboardUsersNewRoute
   '/dashboard/notes/': typeof DashboardNotesIndexRoute
   '/dashboard/parks/': typeof DashboardParksIndexRoute
@@ -155,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/notes/$noteId/gumruk': typeof DashboardNotesNoteIdGumrukRoute
   '/dashboard/rapor/$noteId/edit': typeof DashboardRaporNoteIdEditRoute
   '/dashboard/users/$userId/edit': typeof DashboardUsersUserIdEditRoute
+  '/dashboard/rapor/$noteId/': typeof DashboardRaporNoteIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/forgot-password': typeof authForgotPasswordRoute
@@ -164,7 +165,6 @@ export interface FileRoutesByTo {
   '/': typeof PublicIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/notes/new': typeof DashboardNotesNewRoute
-  '/dashboard/rapor/$noteId': typeof DashboardRaporNoteIdRouteWithChildren
   '/dashboard/users/new': typeof DashboardUsersNewRoute
   '/dashboard/notes': typeof DashboardNotesIndexRoute
   '/dashboard/parks': typeof DashboardParksIndexRoute
@@ -175,6 +175,7 @@ export interface FileRoutesByTo {
   '/dashboard/notes/$noteId/gumruk': typeof DashboardNotesNoteIdGumrukRoute
   '/dashboard/rapor/$noteId/edit': typeof DashboardRaporNoteIdEditRoute
   '/dashboard/users/$userId/edit': typeof DashboardUsersUserIdEditRoute
+  '/dashboard/rapor/$noteId': typeof DashboardRaporNoteIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -187,7 +188,6 @@ export interface FileRoutesById {
   '/_public/': typeof PublicIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/notes/new': typeof DashboardNotesNewRoute
-  '/dashboard/rapor/$noteId': typeof DashboardRaporNoteIdRouteWithChildren
   '/dashboard/users/new': typeof DashboardUsersNewRoute
   '/dashboard/notes/': typeof DashboardNotesIndexRoute
   '/dashboard/parks/': typeof DashboardParksIndexRoute
@@ -198,6 +198,7 @@ export interface FileRoutesById {
   '/dashboard/notes/$noteId/gumruk': typeof DashboardNotesNoteIdGumrukRoute
   '/dashboard/rapor/$noteId/edit': typeof DashboardRaporNoteIdEditRoute
   '/dashboard/users/$userId/edit': typeof DashboardUsersUserIdEditRoute
+  '/dashboard/rapor/$noteId/': typeof DashboardRaporNoteIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -210,7 +211,6 @@ export interface FileRouteTypes {
     | '/notes-list'
     | '/dashboard/'
     | '/dashboard/notes/new'
-    | '/dashboard/rapor/$noteId'
     | '/dashboard/users/new'
     | '/dashboard/notes/'
     | '/dashboard/parks/'
@@ -221,6 +221,7 @@ export interface FileRouteTypes {
     | '/dashboard/notes/$noteId/gumruk'
     | '/dashboard/rapor/$noteId/edit'
     | '/dashboard/users/$userId/edit'
+    | '/dashboard/rapor/$noteId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/forgot-password'
@@ -230,7 +231,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/dashboard/notes/new'
-    | '/dashboard/rapor/$noteId'
     | '/dashboard/users/new'
     | '/dashboard/notes'
     | '/dashboard/parks'
@@ -241,6 +241,7 @@ export interface FileRouteTypes {
     | '/dashboard/notes/$noteId/gumruk'
     | '/dashboard/rapor/$noteId/edit'
     | '/dashboard/users/$userId/edit'
+    | '/dashboard/rapor/$noteId'
   id:
     | '__root__'
     | '/_public'
@@ -252,7 +253,6 @@ export interface FileRouteTypes {
     | '/_public/'
     | '/dashboard/'
     | '/dashboard/notes/new'
-    | '/dashboard/rapor/$noteId'
     | '/dashboard/users/new'
     | '/dashboard/notes/'
     | '/dashboard/parks/'
@@ -263,6 +263,7 @@ export interface FileRouteTypes {
     | '/dashboard/notes/$noteId/gumruk'
     | '/dashboard/rapor/$noteId/edit'
     | '/dashboard/users/$userId/edit'
+    | '/dashboard/rapor/$noteId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -366,18 +367,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardUsersNewRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
-    '/dashboard/rapor/$noteId': {
-      id: '/dashboard/rapor/$noteId'
-      path: '/rapor/$noteId'
-      fullPath: '/dashboard/rapor/$noteId'
-      preLoaderRoute: typeof DashboardRaporNoteIdRouteImport
-      parentRoute: typeof DashboardRouteRoute
-    }
     '/dashboard/notes/new': {
       id: '/dashboard/notes/new'
       path: '/notes/new'
       fullPath: '/dashboard/notes/new'
       preLoaderRoute: typeof DashboardNotesNewRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/rapor/$noteId/': {
+      id: '/dashboard/rapor/$noteId/'
+      path: '/rapor/$noteId'
+      fullPath: '/dashboard/rapor/$noteId/'
+      preLoaderRoute: typeof DashboardRaporNoteIdIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/users/$userId/edit': {
@@ -389,10 +390,10 @@ declare module '@tanstack/react-router' {
     }
     '/dashboard/rapor/$noteId/edit': {
       id: '/dashboard/rapor/$noteId/edit'
-      path: '/edit'
+      path: '/rapor/$noteId/edit'
       fullPath: '/dashboard/rapor/$noteId/edit'
       preLoaderRoute: typeof DashboardRaporNoteIdEditRouteImport
-      parentRoute: typeof DashboardRaporNoteIdRoute
+      parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/notes/$noteId/gumruk': {
       id: '/dashboard/notes/$noteId/gumruk'
@@ -432,21 +433,9 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
   PublicRouteRouteChildren,
 )
 
-interface DashboardRaporNoteIdRouteChildren {
-  DashboardRaporNoteIdEditRoute: typeof DashboardRaporNoteIdEditRoute
-}
-
-const DashboardRaporNoteIdRouteChildren: DashboardRaporNoteIdRouteChildren = {
-  DashboardRaporNoteIdEditRoute: DashboardRaporNoteIdEditRoute,
-}
-
-const DashboardRaporNoteIdRouteWithChildren =
-  DashboardRaporNoteIdRoute._addFileChildren(DashboardRaporNoteIdRouteChildren)
-
 interface DashboardRouteRouteChildren {
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardNotesNewRoute: typeof DashboardNotesNewRoute
-  DashboardRaporNoteIdRoute: typeof DashboardRaporNoteIdRouteWithChildren
   DashboardUsersNewRoute: typeof DashboardUsersNewRoute
   DashboardNotesIndexRoute: typeof DashboardNotesIndexRoute
   DashboardParksIndexRoute: typeof DashboardParksIndexRoute
@@ -455,13 +444,14 @@ interface DashboardRouteRouteChildren {
   DashboardNotesNoteIdCikisRoute: typeof DashboardNotesNoteIdCikisRoute
   DashboardNotesNoteIdEditRoute: typeof DashboardNotesNoteIdEditRoute
   DashboardNotesNoteIdGumrukRoute: typeof DashboardNotesNoteIdGumrukRoute
+  DashboardRaporNoteIdEditRoute: typeof DashboardRaporNoteIdEditRoute
   DashboardUsersUserIdEditRoute: typeof DashboardUsersUserIdEditRoute
+  DashboardRaporNoteIdIndexRoute: typeof DashboardRaporNoteIdIndexRoute
 }
 
 const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardNotesNewRoute: DashboardNotesNewRoute,
-  DashboardRaporNoteIdRoute: DashboardRaporNoteIdRouteWithChildren,
   DashboardUsersNewRoute: DashboardUsersNewRoute,
   DashboardNotesIndexRoute: DashboardNotesIndexRoute,
   DashboardParksIndexRoute: DashboardParksIndexRoute,
@@ -470,7 +460,9 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardNotesNoteIdCikisRoute: DashboardNotesNoteIdCikisRoute,
   DashboardNotesNoteIdEditRoute: DashboardNotesNoteIdEditRoute,
   DashboardNotesNoteIdGumrukRoute: DashboardNotesNoteIdGumrukRoute,
+  DashboardRaporNoteIdEditRoute: DashboardRaporNoteIdEditRoute,
   DashboardUsersUserIdEditRoute: DashboardUsersUserIdEditRoute,
+  DashboardRaporNoteIdIndexRoute: DashboardRaporNoteIdIndexRoute,
 }
 
 const DashboardRouteRouteWithChildren = DashboardRouteRoute._addFileChildren(

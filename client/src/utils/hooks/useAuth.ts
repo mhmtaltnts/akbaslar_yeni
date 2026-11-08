@@ -1,5 +1,4 @@
-import { useSelector } from "react-redux";
-import { selectCurrentToken } from "../../appStore/authSlice";
+import { useToken } from "@/lib/auth";
 import { jwtDecode } from "jwt-decode";
 import { SUPER_ADMIN, type Roles } from "../config/roles";
 
@@ -15,7 +14,7 @@ type AccessToken = {
 };
 
 const useAuth = () => {
-  const token = useSelector(selectCurrentToken);
+  const token = useToken();
   let isManager = false;
   let isAdmin = false;
   let status = "Çalışan";

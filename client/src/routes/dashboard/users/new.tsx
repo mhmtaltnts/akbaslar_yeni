@@ -1,4 +1,4 @@
-import { useAddNewUserMutation } from "@/api/usersApiSlice";
+import { useAddUser } from "@/api/users";
 import { FormCard } from "@/components/app/form-card";
 import { ErrorAlert, Field } from "@/components/app/page";
 import { RolePicker } from "@/components/app/role-picker";
@@ -9,7 +9,7 @@ import { ROLES } from "@/utils/config/roles";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/users/new")({
@@ -18,21 +18,14 @@ export const Route = createFileRoute("/dashboard/users/new")({
 
 function RouteComponent() {
   useTitle("Yeni Kullanıcı");
-  const [addNewUser, { isLoading, isSuccess, isError, error }] = useAddNewUserMutation();
+  const addUser = useAddUser();
+  const { isPending: isLoading, isError, error } = addUser;
   const navigate = useNavigate();
 
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [roles, setRoles] = useState<string[]>([ROLES.Employee]);
-
-  useEffect(() => {
-    if (isSuccess) {
-      toast.success(`${username} oluşturuldu`);
-      navigate({ to: "/dashboard/users" });
-    }
-    // eslint-disable-next-line
-  }, [isSuccess, navigate]);
 
   const canSave = Boolean(username && password && roles.length) && !isLoading;
 
@@ -42,8 +35,17 @@ function RouteComponent() {
       description="Kullanıcı bu otoparka eklenir ve hemen giriş yapabilir."
       backTo="/dashboard/users"
       backLabel="Kullanıcılar"
-      onSubmit={async () => {
-        if (canSave) await addNewUser({ fullName, username, password, roles });
+      onSubmit={() => {
+        if (!canSave) return;
+        addUser.mutate(
+          { fullName, username, password, roles },
+          {
+            onSuccess: () => {
+              toast.success(`${username} oluşturuldu`);
+              navigate({ to: "/dashboard/users" });
+            },
+          },
+        );
       }}
       footer={
         <>

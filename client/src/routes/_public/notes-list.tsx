@@ -1,8 +1,6 @@
 import { useState } from "react";
-import {
-  useGetPublicNotesQuery,
-  useGetPublicParksQuery,
-} from "@/api/publicApiSlice";
+import { publicNotesQuery, publicParksQuery } from "@/api/public";
+import { useQuery } from "@tanstack/react-query";
 import { EmptyState, PageLoader, SearchInput } from "@/components/app/page";
 import { Plate } from "@/components/app/plate";
 import { formatDateTime, stayLabel } from "@/lib/format";
@@ -26,17 +24,16 @@ function PublicNotesList() {
   const navigate = useNavigate({ from: Route.fullPath });
   const [search, setSearch] = useState("");
 
-  const { data: parks, isLoading: parksLoading } = useGetPublicParksQuery();
+  const { data: parks, isLoading: parksLoading } = useQuery(publicParksQuery);
 
   // Tek otopark varsa seçim yaptırmadan onu göster.
   const slug = park ?? (parks?.length === 1 ? parks[0].slug : undefined);
   const current = parks?.find((p) => p.slug === slug);
 
-  const { data: notes, isLoading, isSuccess, isError } = useGetPublicNotesQuery(slug ?? "", {
-    skip: !slug,
-    pollingInterval: 15000,
-    refetchOnFocus: true,
-    refetchOnMountOrArgChange: true,
+  const { data: notes, isLoading, isSuccess, isError } = useQuery({
+    ...publicNotesQuery(slug ?? ""),
+    enabled: Boolean(slug),
+    refetchInterval: 15000,
   });
 
   const q = search.toLocaleLowerCase("tr-TR");
@@ -90,9 +87,12 @@ function PublicNotesList() {
           <EmptyState icon={Building2} title="Otopark seçin" description="Araçları görmek için yukarıdan bir otopark seçin." />
         )}
         {isError && (
+          <EmptyState icon={Building2} title="Otopark bulunamadı" description="Bağlantıdaki otopark kodu geçersiz ya da otopark askıya alınmış." />
+        )}
+        {isSuccess && notes.length === 0 && (
           <EmptyState icon={Truck} title="Parkta araç yok" description={current?.name} />
         )}
-        {isSuccess && filtered.length === 0 && (
+        {isSuccess && notes.length > 0 && filtered.length === 0 && (
           <EmptyState icon={Search} title="Sonuç bulunamadı" description={`"${search}" ile eşleşen araç yok.`} />
         )}
 
@@ -101,7 +101,7 @@ function PublicNotesList() {
             <ul className="divide-y">
               {filtered.map((n) => (
                 <li
-                  key={n._id}
+                  key={n.id}
                   className="grid grid-cols-[1fr_auto] items-center gap-x-6 gap-y-1.5 px-4 py-3 sm:grid-cols-[9rem_10rem_1fr_auto] sm:px-5"
                 >
                   <div>

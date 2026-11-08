@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useDeleteNoteMutation, useGetRaporQuery } from "@/api/notesApiSlice";
-import { selectCurrentPage, setPage } from "@/appStore/pageSlice";
+import { raporQuery, useDeleteNote } from "@/api/notes";
+import type { Note } from "@/api/types";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
   EmptyState,
   ErrorAlert,
@@ -27,6 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { apiErrorMessage, formatDateTime, stayDays } from "@/lib/format";
+import { pageSearch, validateRaporSearch } from "@/lib/rapor-search";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -41,48 +43,39 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/rapor/")({
+  validateSearch: validateRaporSearch,
+  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
+  loader: ({ context, deps }) => context.queryClient.prefetchQuery(raporQuery(deps.page)),
   component: RouteComponent,
 });
-
-type Note = {
-  id: string;
-  dorse: string;
-  getiren: string;
-  goturen?: string | null;
-  firma?: string | null;
-  mal?: string | null;
-  gumrukBilgi?: string | null;
-  girisTarihi?: number | null;
-  cikisTarihi?: number | null;
-};
 
 const SEARCH_KEYS = ["dorse", "getiren", "goturen", "firma", "mal", "gumrukBilgi"] as const;
 
 function RouteComponent() {
   useTitle("Rapor");
-  const page = useSelector(selectCurrentPage);
-  const dispatch = useDispatch();
+  const { page = 1 } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const [search, setSearch] = useState("");
 
-  const { data, isLoading, isFetching, isSuccess, isError, error } = useGetRaporQuery(page);
+  const { data, isLoading, isFetching, isSuccess, isError, error } = useQuery({
+    ...raporQuery(page),
+    placeholderData: keepPreviousData, // sayfa değişirken tablo boşalmasın
+  });
 
-  const notes: Note[] = isSuccess
-    ? data.notes.ids.map((id: string) => data.notes.entities[id])
-    : [];
-  const count: number = data?.pagination.count ?? 0;
-  const pageCount: number = data?.pagination.pageCount ?? 1;
+  const notes: Note[] = data?.notes ?? [];
+  const count = data?.count ?? 0;
+  const pageCount = data?.pageCount ?? 1;
 
   const q = search.toLocaleLowerCase("tr-TR");
   const filtered = q
     ? notes.filter((n) => SEARCH_KEYS.some((k) => n[k]?.toLocaleLowerCase("tr-TR").includes(q)))
     : notes;
 
-  const goTo = (sayfa: number) =>
-    dispatch(setPage({ sayfa: Math.min(Math.max(1, sayfa), pageCount) }));
+  const goTo = (p: number) =>
+    navigate({ search: pageSearch(Math.min(Math.max(1, p), pageCount)) });
 
   return (
     <>
@@ -155,7 +148,7 @@ function RouteComponent() {
                         </Badge>
                       </TableCell>
                       <TableCell className="pr-4 text-right">
-                        <RaporActions note={n} />
+                        <RaporActions note={n} page={page} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -171,7 +164,7 @@ function RouteComponent() {
                       <Plate value={n.dorse} />
                       {n.girisTarihi && <Badge variant="secondary">{stayDays(n.girisTarihi, n.cikisTarihi)} gün</Badge>}
                     </div>
-                    <RaporActions note={n} />
+                    <RaporActions note={n} page={page} />
                   </div>
                   <p className="text-sm font-medium">{n.firma || "Firma yok"}</p>
                   <p className="text-muted-foreground text-xs">
@@ -228,27 +221,25 @@ function Pagination({
   );
 }
 
-function RaporActions({ note }: { note: Note }) {
+function RaporActions({ note, page }: { note: Note; page: number }) {
   const { isAdmin, isManager } = useAuth();
   const navigate = useNavigate();
-  const [deleteNote] = useDeleteNoteMutation();
+  const deleteNote = useDeleteNote();
   const noteId = note.id;
 
   const onDelete = async () => {
     if (window.confirm(`${note.dorse} kaydını silmek istediğinizden emin misiniz?`)) {
-      try {
-        await deleteNote({ id: noteId }).unwrap();
-        toast.success("Kayıt silindi");
-      } catch (err) {
-        toast.error(apiErrorMessage(err));
-      }
+      deleteNote.mutate(noteId, {
+        onSuccess: () => toast.success("Kayıt silindi"),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      });
     }
   };
 
   if (!isAdmin && !isManager) {
     return (
       <Button asChild variant="ghost" size="sm">
-        <Link to="/dashboard/rapor/$noteId" params={{ noteId }}>
+        <Link to="/dashboard/rapor/$noteId" params={{ noteId }} search={pageSearch(page)}>
           <Eye /> Detay
         </Link>
       </Button>
@@ -263,10 +254,10 @@ function RaporActions({ note }: { note: Note }) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => navigate({ to: "/dashboard/rapor/$noteId", params: { noteId } })}>
+        <DropdownMenuItem onClick={() => navigate({ to: "/dashboard/rapor/$noteId", params: { noteId }, search: pageSearch(page) })}>
           <Eye /> Detay
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate({ to: "/dashboard/rapor/$noteId/edit", params: { noteId } })}>
+        <DropdownMenuItem onClick={() => navigate({ to: "/dashboard/rapor/$noteId/edit", params: { noteId }, search: pageSearch(page) })}>
           <Pencil /> Düzenle
         </DropdownMenuItem>
         <DropdownMenuSeparator />

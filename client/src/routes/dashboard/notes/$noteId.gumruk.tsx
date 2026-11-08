@@ -1,54 +1,47 @@
-import { useGetNotesQuery, useGumrukBilgiMutation } from "@/api/notesApiSlice";
+import { notesQuery, useGumruk } from "@/api/notes";
+import type { Note } from "@/api/types";
 import { FormCard } from "@/components/app/form-card";
+import { NoteGate } from "@/components/app/note-gate";
 import { NoteSummary } from "@/components/app/note-summary";
-import { ErrorAlert, Field, PageLoader } from "@/components/app/page";
+import { ErrorAlert, Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage } from "@/lib/format";
-import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/notes/$noteId/gumruk")({
+  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
   component: RouteComponent,
 });
 
 function RouteComponent() {
   useTitle("Gümrük Bilgisi");
-  const id = useParams({
-    from: "/dashboard/notes/$noteId/gumruk",
-    select: (params) => params.noteId,
-  });
-  const { note } = useGetNotesQuery("notesList", {
-    selectFromResult: ({ data }) => ({ note: data?.entities[id] }),
-  });
-
-  if (!note) return <PageLoader />;
-  return <EditGumrukForm note={note} />;
+  const { noteId } = Route.useParams();
+  return <NoteGate id={noteId}>{(note) => <GumrukForm note={note} />}</NoteGate>;
 }
 
-const EditGumrukForm = ({ note }) => {
-  const { username } = useAuth();
+function GumrukForm({ note }: { note: Note }) {
   const navigate = useNavigate();
+  const gumruk = useGumruk();
   const [gumrukBilgi, setGumrukBilgi] = useState(note.gumrukBilgi ?? "");
-  const [save, { isLoading, isSuccess, isError, error }] = useGumrukBilgiMutation();
 
-  useEffect(() => {
-    if (isSuccess) {
-      toast.success("Gümrük bilgisi kaydedildi");
-      navigate({ to: "/dashboard/notes" });
-    }
-  }, [isSuccess, navigate]);
+  const canSave = gumrukBilgi.trim() !== "" && !gumruk.isPending;
 
-  const canSave = gumrukBilgi.trim() !== "" && !isLoading;
-
-  const onSave = async () => {
-    if (canSave) {
-      await save({ id: note.id, user: username, gumrukBilgi, gumrukBilgiTarihi: Date.now() });
-    }
+  const onSave = () => {
+    if (!canSave) return;
+    gumruk.mutate(
+      { id: note.id, gumrukBilgi, gumrukBilgiTarihi: Date.now() },
+      {
+        onSuccess: () => {
+          toast.success("Gümrük bilgisi kaydedildi");
+          navigate({ to: "/dashboard/notes" });
+        },
+      },
+    );
   };
 
   return (
@@ -64,12 +57,12 @@ const EditGumrukForm = ({ note }) => {
             <Link to="/dashboard/notes">Vazgeç</Link>
           </Button>
           <Button type="submit" disabled={!canSave}>
-            {isLoading ? <Loader2 className="animate-spin" /> : <Save />} Kaydet
+            {gumruk.isPending ? <Loader2 className="animate-spin" /> : <Save />} Kaydet
           </Button>
         </>
       }
     >
-      {isError && <ErrorAlert message={apiErrorMessage(error)} />}
+      {gumruk.isError && <ErrorAlert message={apiErrorMessage(gumruk.error)} />}
       <NoteSummary note={note} />
       <Field label="Gümrük kaydı *" htmlFor="gumrukBilgi">
         <Textarea
@@ -83,4 +76,4 @@ const EditGumrukForm = ({ note }) => {
       </Field>
     </FormCard>
   );
-};
+}

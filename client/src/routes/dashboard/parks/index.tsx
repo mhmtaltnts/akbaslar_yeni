@@ -1,9 +1,6 @@
-import {
-  useAddNewTenantMutation,
-  useGetTenantsQuery,
-  useUpdateTenantMutation,
-  type Tenant,
-} from "@/api/tenantsApiSlice";
+import { tenantsQuery, useAddTenant, useUpdateTenant } from "@/api/tenants";
+import type { Tenant } from "@/api/types";
+import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ErrorAlert, Field, PageHeader, PageLoader } from "@/components/app/page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,8 +24,9 @@ function ParksPage() {
   useTitle("Otoparklar");
   const { isSuperAdmin, tenantId } = useAuth();
   const [creating, setCreating] = useState(false);
-  const { data: tenants, isLoading, isError, error } = useGetTenantsQuery(undefined, {
-    skip: !isSuperAdmin,
+  const { data: tenants, isLoading, isError, error } = useQuery({
+    ...tenantsQuery,
+    enabled: isSuperAdmin,
   });
 
   if (!isSuperAdmin) {
@@ -57,7 +55,7 @@ function ParksPage() {
       {tenants && (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {tenants.map((t) => (
-            <TenantCard key={t._id} tenant={t} isOwn={t._id === tenantId} />
+            <TenantCard key={t.id} tenant={t} isOwn={t.id === tenantId} />
           ))}
         </div>
       )}
@@ -70,24 +68,20 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
   const [name, setName] = useState(tenant.name);
   const [slug, setSlug] = useState(tenant.slug);
   const [address, setAddress] = useState(tenant.address ?? "");
-  const [updateTenant, { isLoading }] = useUpdateTenantMutation();
+  const updateTenant = useUpdateTenant();
+  const isLoading = updateTenant.isPending;
 
-  const save = async (changes: Partial<Tenant> = {}) => {
-    try {
-      const res = await updateTenant({
-        id: tenant._id,
-        name,
-        slug,
-        address,
-        active: tenant.active,
-        ...changes,
-      }).unwrap();
-      toast.success(res.message);
-      setEditing(false);
-    } catch (err) {
-      toast.error(apiErrorMessage(err));
-    }
-  };
+  const save = (changes: Partial<Tenant> = {}) =>
+    updateTenant.mutate(
+      { id: tenant.id, name, slug, address, active: tenant.active, ...changes },
+      {
+        onSuccess: (res) => {
+          toast.success(res.message);
+          setEditing(false);
+        },
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
 
   return (
     <div
@@ -103,14 +97,14 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
         <div className="min-w-0 flex-1">
           {editing ? (
             <div className="space-y-3">
-              <Field label="Ad" htmlFor={`n-${tenant._id}`}>
-                <Input id={`n-${tenant._id}`} value={name} onChange={(e) => setName(e.target.value)} />
+              <Field label="Ad" htmlFor={`n-${tenant.id}`}>
+                <Input id={`n-${tenant.id}`} value={name} onChange={(e) => setName(e.target.value)} />
               </Field>
-              <Field label="Kod" htmlFor={`s-${tenant._id}`}>
-                <Input id={`s-${tenant._id}`} className="font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} />
+              <Field label="Kod" htmlFor={`s-${tenant.id}`}>
+                <Input id={`s-${tenant.id}`} className="font-mono" value={slug} onChange={(e) => setSlug(e.target.value)} />
               </Field>
-              <Field label="Adres" htmlFor={`a-${tenant._id}`}>
-                <Input id={`a-${tenant._id}`} value={address} onChange={(e) => setAddress(e.target.value)} />
+              <Field label="Adres" htmlFor={`a-${tenant.id}`}>
+                <Input id={`a-${tenant.id}`} value={address} onChange={(e) => setAddress(e.target.value)} />
               </Field>
             </div>
           ) : (
@@ -183,26 +177,29 @@ const emptyForm = { name: "", slug: "", address: "", fullname: "", username: "",
 
 function NewTenantForm({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState(emptyForm);
-  const [addNewTenant, { isLoading, error, isError }] = useAddNewTenantMutation();
+  const addTenant = useAddTenant();
+  const { isPending: isLoading, error, isError } = addTenant;
 
   const set = (key: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const res = await addNewTenant({
+    addTenant.mutate(
+      {
         name: form.name,
         slug: form.slug,
         address: form.address,
         admin: { fullname: form.fullname, username: form.username, password: form.password },
-      }).unwrap();
-      toast.success(res.message);
-      setForm(emptyForm);
-      onClose();
-    } catch {
-      /* hata aşağıda gösteriliyor */
-    }
+      },
+      {
+        onSuccess: (res) => {
+          toast.success(res.message);
+          setForm(emptyForm);
+          onClose();
+        },
+      },
+    );
   };
 
   const input = (key: keyof typeof emptyForm, label: string, opts: { type?: string; mono?: boolean; required?: boolean; hint?: string } = {}) => (

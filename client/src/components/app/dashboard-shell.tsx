@@ -11,7 +11,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useSendLogoutMutation } from "@/api/authApiSlice";
+import { useLogout } from "@/api/auth";
 import useAuth from "@/utils/hooks/useAuth";
 import defineAbilityFor from "@/utils/permission";
 import { cn } from "@/lib/utils";
@@ -59,11 +59,14 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { fullname, status, tenantName } = useAuth();
-  const [sendLogout, { isLoading, isSuccess }] = useSendLogoutMutation();
+  const logout = useLogout();
 
-  useEffect(() => {
-    if (isSuccess) navigate({ to: "/" });
-  }, [isSuccess, navigate]);
+  // Sıra için bkz. `useLogout`: sunucu → sayfa → yerel oturum.
+  const onLogout = async () => {
+    await logout.mutateAsync();
+    await navigate({ to: "/" });
+    logout.clearSession();
+  };
 
   const isActive = (item: NavItem) =>
     item.exact
@@ -122,11 +125,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         <Button
           variant="ghost"
           className="text-muted-foreground hover:text-destructive mt-1 w-full justify-start gap-3 px-3"
-          onClick={() => sendLogout(undefined)}
-          disabled={isLoading}
+          onClick={onLogout}
+          disabled={logout.isPending}
         >
           <LogOut className="size-[18px]" />
-          {isLoading ? "Çıkış yapılıyor..." : "Çıkış Yap"}
+          Çıkış Yap
         </Button>
       </div>
     </div>

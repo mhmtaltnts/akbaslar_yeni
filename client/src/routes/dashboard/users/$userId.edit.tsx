@@ -1,6 +1,8 @@
-import { useGetUsersQuery, useUpdateUserMutation } from "@/api/usersApiSlice";
+import { usersQuery, useUpdateUser } from "@/api/users";
+import type { User } from "@/api/types";
+import { useQuery } from "@tanstack/react-query";
 import { FormCard } from "@/components/app/form-card";
-import { ErrorAlert, Field, PageLoader } from "@/components/app/page";
+import { EmptyState, ErrorAlert, Field, PageLoader } from "@/components/app/page";
 import { RolePicker } from "@/components/app/role-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,31 +10,32 @@ import { apiErrorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SUPER_ADMIN } from "@/utils/config/roles";
 import useTitle from "@/utils/hooks/useTitle";
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
-import { Loader2, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Loader2, Save, UserX } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/users/$userId/edit")({
+  loader: ({ context }) => context.queryClient.prefetchQuery(usersQuery),
   component: RouteComponent,
 });
 
 function RouteComponent() {
   useTitle("Kullanıcıyı Düzenle");
-  const id = useParams({
-    from: "/dashboard/users/$userId/edit",
-    select: (params) => params.userId,
-  });
-  const { user } = useGetUsersQuery("usersList", {
-    selectFromResult: ({ data }) => ({ user: data?.entities[id] }),
+  const { userId } = Route.useParams();
+  const { data: user, isPending } = useQuery({
+    ...usersQuery,
+    select: (users) => users.find((u) => u.id === userId) ?? null,
   });
 
-  if (!user) return <PageLoader />;
+  if (isPending) return <PageLoader />;
+  if (!user) return <EmptyState icon={UserX} title="Kullanıcı bulunamadı" />;
   return <EditUserForm user={user} />;
 }
 
-const EditUserForm = ({ user }) => {
-  const [updateUser, { isLoading, isSuccess, isError, error }] = useUpdateUserMutation();
+const EditUserForm = ({ user }: { user: User }) => {
+  const updateUser = useUpdateUser();
+  const { isPending: isLoading, isError, error } = updateUser;
   const navigate = useNavigate();
 
   const [username, setUsername] = useState(user.username);
@@ -41,20 +44,17 @@ const EditUserForm = ({ user }) => {
   const [roles, setRoles] = useState<string[]>(user.roles.filter((r: string) => r !== SUPER_ADMIN));
   const [active, setActive] = useState<boolean>(user.active);
 
-  useEffect(() => {
-    if (isSuccess) {
-      toast.success(`${username} güncellendi`);
-      navigate({ to: "/dashboard/users" });
-    }
-    // eslint-disable-next-line
-  }, [isSuccess, navigate]);
-
   const canSave = roles.length > 0 && Boolean(username) && !isLoading;
 
-  const onSave = async () => {
+  const onSave = () => {
     if (!canSave) return;
     const body = { id: user.id, fullName: user.fullname, username, roles, active };
-    await updateUser(password ? { ...body, password } : body);
+    updateUser.mutate(password ? { ...body, password } : body, {
+      onSuccess: () => {
+        toast.success(`${username} güncellendi`);
+        navigate({ to: "/dashboard/users" });
+      },
+    });
   };
 
   return (

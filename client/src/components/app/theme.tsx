@@ -1,26 +1,9 @@
-import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { Moon, Sun } from "lucide-react";
-import { selectCurrentTheme, setTheme } from "@/appStore/themeSlice";
 import { Button } from "@/components/ui/button";
-
-// Redux'taki tema state'ini `<html class="dark">`'a ve localStorage'a yansıtır.
-export function ThemeSync() {
-  const dark = useSelector(selectCurrentTheme);
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-    try {
-      localStorage.setItem("theme", dark ? "dark" : "light");
-    } catch {
-      /* gizli sekme vb. -- tercih kaydedilemezse sorun değil */
-    }
-  }, [dark]);
-  return null;
-}
+import { useDarkMode } from "@/lib/theme";
 
 export function ThemeToggle({ className }: { className?: string }) {
-  const dark = useSelector(selectCurrentTheme);
-  const dispatch = useDispatch();
+  const { dark, toggle } = useDarkMode();
   return (
     <Button
       variant="ghost"
@@ -28,7 +11,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       className={className}
       title={dark ? "Açık tema" : "Koyu tema"}
       aria-label="Temayı değiştir"
-      onClick={() => dispatch(setTheme({ darkness: !dark }))}
+      onClick={toggle}
     >
       {dark ? <Sun /> : <Moon />}
     </Button>

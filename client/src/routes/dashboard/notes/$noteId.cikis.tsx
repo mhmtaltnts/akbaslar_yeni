@@ -1,55 +1,47 @@
-import { useCikisMutation, useGetNotesQuery } from "@/api/notesApiSlice";
+import { notesQuery, useCikis } from "@/api/notes";
+import type { Note } from "@/api/types";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
+import { NoteGate } from "@/components/app/note-gate";
 import { NoteSummary } from "@/components/app/note-summary";
-import { ErrorAlert, Field, PageLoader } from "@/components/app/page";
+import { ErrorAlert, Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/format";
-import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, LogOut } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/notes/$noteId/cikis")({
+  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
   component: RouteComponent,
 });
 
 function RouteComponent() {
   useTitle("Araç Çıkışı");
-  const id = useParams({
-    from: "/dashboard/notes/$noteId/cikis",
-    select: (params) => params.noteId,
-  });
-  const { note } = useGetNotesQuery("notesList", {
-    selectFromResult: ({ data }) => ({ note: data?.entities[id] }),
-  });
-
-  if (!note) return <PageLoader />;
-  return <CikisForm note={note} />;
+  const { noteId } = Route.useParams();
+  return <NoteGate id={noteId}>{(note) => <CikisForm note={note} />}</NoteGate>;
 }
 
-const CikisForm = ({ note }) => {
-  const { username } = useAuth();
-  const [cikisNote, { isLoading, isSuccess, isError, error }] = useCikisMutation();
+function CikisForm({ note }: { note: Note }) {
+  const cikis = useCikis();
   const navigate = useNavigate();
   const [goturen, setGoturen] = useState("");
 
-  useEffect(() => {
-    if (isSuccess) {
-      toast.success(`${note.dorse} parktan çıkış yaptı`);
-      navigate({ to: "/dashboard/notes" });
-    }
-    // eslint-disable-next-line
-  }, [isSuccess, navigate]);
+  const canSave = Boolean(goturen) && !cikis.isPending;
 
-  const canSave = Boolean(goturen) && !isLoading;
-
-  const onSave = async () => {
-    if (canSave) {
-      await cikisNote({ id: note.id, user: username, goturen, cikisTarihi: Date.now() });
-    }
+  const onSave = () => {
+    if (!canSave) return;
+    cikis.mutate(
+      { id: note.id, goturen, cikisTarihi: Date.now() },
+      {
+        onSuccess: () => {
+          toast.success(`${note.dorse} parktan çıkış yaptı`);
+          navigate({ to: "/dashboard/notes" });
+        },
+      },
+    );
   };
 
   return (
@@ -65,12 +57,12 @@ const CikisForm = ({ note }) => {
             <Link to="/dashboard/notes">Vazgeç</Link>
           </Button>
           <Button type="submit" disabled={!canSave}>
-            {isLoading ? <Loader2 className="animate-spin" /> : <LogOut />} Çıkışı Onayla
+            {cikis.isPending ? <Loader2 className="animate-spin" /> : <LogOut />} Çıkışı Onayla
           </Button>
         </>
       }
     >
-      {isError && <ErrorAlert message={apiErrorMessage(error)} />}
+      {cikis.isError && <ErrorAlert message={apiErrorMessage(cikis.error)} />}
       <NoteSummary note={note} />
       <Field label="Götüren çekici plakası *" htmlFor="goturen">
         <Input
@@ -85,4 +77,4 @@ const CikisForm = ({ note }) => {
       </Field>
     </FormCard>
   );
-};
+}

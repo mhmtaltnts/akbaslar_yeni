@@ -1,5 +1,4 @@
-import { useLoginMutation } from "@/api/authApiSlice";
-import { setCredentials } from "@/appStore/authSlice";
+import { useLogin } from "@/api/auth";
 import { ErrorAlert, Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,6 @@ import usePersist from "@/utils/hooks/usePersist";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
 
 export function LoginForm() {
   const userRef = useRef<HTMLInputElement>(null);
@@ -18,8 +16,8 @@ export function LoginForm() {
   const [persist, setPersist] = usePersist();
 
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const [login, { isLoading }] = useLoginMutation();
+  const login = useLogin();
+  const isLoading = login.isPending;
 
   useEffect(() => {
     userRef.current?.focus();
@@ -32,8 +30,7 @@ export function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { accessToken } = await login({ username, password }).unwrap();
-      dispatch(setCredentials({ accessToken }));
+      await login.mutateAsync({ username, password });
       setUsername("");
       setPassword("");
       navigate({ to: "/dashboard" });

@@ -17,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { cn } from "@/lib/utils";
-import { useSignupMutation } from "@/api/authApiSlice";
+import { useSignup } from "@/api/auth";
 
 // Form şeması düzeltmesi
 const formSchema = z.object({
@@ -39,7 +39,8 @@ export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const [signup, { isLoading }] = useSignupMutation();
+  const signup = useSignup();
+  const isLoading = signup.isPending;
   const navigate = useNavigate();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -56,7 +57,7 @@ export function SignupForm({
     try {
       // Çoklu otopark: kayıt, kullanıcıyı otopark koduyla belirtilen
       // otoparka PASİF olarak ekler; kurucu onaylayınca giriş yapılabilir.
-      const result = await signup(values).unwrap();
+      const result = await signup.mutateAsync(values);
       toast.success(result.message);
       navigate({ to: "/login" });
     } catch (error: unknown) {

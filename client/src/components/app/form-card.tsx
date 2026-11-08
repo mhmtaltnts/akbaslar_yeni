@@ -9,6 +9,7 @@ export function FormCard({
   description,
   backTo,
   backLabel = "Geri",
+  backSearch,
   children,
   footer,
   onSubmit,
@@ -17,6 +18,7 @@ export function FormCard({
   title: ReactNode;
   description?: ReactNode;
   backTo?: LinkProps["to"];
+  backSearch?: Record<string, unknown>;
   backLabel?: string;
   children: ReactNode;
   footer?: ReactNode;
@@ -28,6 +30,7 @@ export function FormCard({
       {backTo && (
         <Link
           to={backTo}
+          search={backSearch as never}
           className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium"
         >
           <ArrowLeft className="size-4" /> {backLabel}

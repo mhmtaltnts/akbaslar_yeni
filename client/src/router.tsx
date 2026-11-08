@@ -1,18 +1,21 @@
 import ReactDOM from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { routeTree } from "./routeTree.gen";
+import { queryClient } from "./lib/query-client";
 import "./index.css";
-import { Provider } from "react-redux";
-import { store } from "./appStore/store";
 
-// Set up a Router instance
 const router = createRouter({
   routeTree,
+  // Route loader'ları veriyi bu QueryClient ile önceden yükler.
+  context: { queryClient },
   defaultPreload: "intent",
+  // Önbellekteki veriyi TanStack Query yönetir; router'ın kendi loader
+  // önbelleği her zaman query'ye sorsun.
+  defaultPreloadStaleTime: 0,
   scrollRestoration: true,
 });
 
-// Register things for typesafety
 declare module "@tanstack/react-router" {
   interface Register {
     router: typeof router;
@@ -22,10 +25,9 @@ declare module "@tanstack/react-router" {
 const rootElement = document.getElementById("app")!;
 
 if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <Provider store={store}>
+  ReactDOM.createRoot(rootElement).render(
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
-    </Provider>,
+    </QueryClientProvider>,
   );
 }

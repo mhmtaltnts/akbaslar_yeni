@@ -1,4 +1,6 @@
-import { useDeleteUserMutation, useGetUsersQuery } from "@/api/usersApiSlice";
+import { useDeleteUser, usersQuery } from "@/api/users";
+import type { User } from "@/api/types";
+import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ErrorAlert, PageHeader, PageLoader, SearchInput } from "@/components/app/page";
 import { RoleBadges } from "@/components/app/role-picker";
 import { Button } from "@/components/ui/button";
@@ -19,16 +21,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/users/")({
+  loader: ({ context }) => context.queryClient.prefetchQuery(usersQuery),
   component: RouteComponent,
 });
-
-type User = {
-  id: string;
-  fullname: string;
-  username: string;
-  roles: string[];
-  active: boolean;
-};
 
 function initials(name: string) {
   return name
@@ -43,13 +38,10 @@ function RouteComponent() {
   useTitle("Kullanıcılar");
   const [search, setSearch] = useState("");
 
-  const { data, isLoading, isSuccess, isError, error } = useGetUsersQuery("usersList", {
-    pollingInterval: 60000,
-    refetchOnFocus: true,
-    refetchOnMountOrArgChange: true,
+  const { data: users = [], isLoading, isSuccess, isError, error } = useQuery({
+    ...usersQuery,
+    refetchInterval: 60000,
   });
-
-  const users: User[] = isSuccess ? data.ids.map((id: string) => data.entities[id]) : [];
   const q = search.toLocaleLowerCase("tr-TR");
   const filtered = q
     ? users.filter(
@@ -114,16 +106,15 @@ function RouteComponent() {
 }
 
 function UserRow({ user }: { user: User }) {
-  const [deleteUser, { isLoading }] = useDeleteUserMutation();
+  const deleteUser = useDeleteUser();
+  const isLoading = deleteUser.isPending;
 
-  const onDelete = async () => {
+  const onDelete = () => {
     if (window.confirm(`${user.fullname} kullanıcısını silmek istiyor musunuz?`)) {
-      try {
-        const res = await deleteUser({ id: user.id }).unwrap();
-        toast.success(res?.reply ?? "Kullanıcı silindi");
-      } catch (err) {
-        toast.error(apiErrorMessage(err));
-      }
+      deleteUser.mutate(user.id, {
+        onSuccess: (res) => toast.success(res?.reply ?? "Kullanıcı silindi"),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      });
     }
   };
 

@@ -1,40 +1,40 @@
-import { useEffect, useState } from "react";
-import { useDeleteNoteMutation, useGetRaporQuery, useUpdateRaporMutation } from "@/api/notesApiSlice";
-import { selectCurrentPage } from "@/appStore/pageSlice";
+import { useState } from "react";
+import { raporQuery, useDeleteNote, useUpdateRapor } from "@/api/notes";
+import type { Note } from "@/api/types";
+import { RaporNoteGate } from "@/components/app/note-gate";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
-import { ErrorAlert, Field, PageLoader } from "@/components/app/page";
+import { ErrorAlert, Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
+import { pageSearch, validateRaporSearch } from "@/lib/rapor-search";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, Save, Trash2 } from "lucide-react";
-import { useSelector } from "react-redux";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/rapor/$noteId/edit")({
+  validateSearch: validateRaporSearch,
+  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
+  loader: ({ context, deps }) => context.queryClient.prefetchQuery(raporQuery(deps.page)),
   component: EditRapor,
 });
 
 function EditRapor() {
   useTitle("Kaydı Düzenle");
-  const id = useParams({
-    from: "/dashboard/rapor/$noteId/edit",
-    select: (params) => params.noteId,
-  });
-  const page = useSelector(selectCurrentPage);
-  const { note } = useGetRaporQuery(page, {
-    selectFromResult: ({ data }) => ({ note: data?.notes.entities[id] }),
-  });
-
-  if (!note) return <PageLoader />;
-  return <EditNoteForm note={note} />;
+  const { noteId } = Route.useParams();
+  const { page = 1 } = Route.useSearch();
+  return (
+    <RaporNoteGate id={noteId} page={page}>
+      {(note) => <EditNoteForm note={note} page={page} />}
+    </RaporNoteGate>
+  );
 }
 
-const EditNoteForm = ({ note }) => {
-  const { username, isManager, isAdmin } = useAuth();
+const EditNoteForm = ({ note, page }: { note: Note; page: number }) => {
+  const { isManager, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [dorse, setDorse] = useState(note.dorse ?? "");
   const [getiren, setGetiren] = useState(note.getiren ?? "");
@@ -46,36 +46,38 @@ const EditNoteForm = ({ note }) => {
   const [gumrukBilgi, setGumrukBilgi] = useState(note.gumrukBilgi ?? "");
   const [gumrukBilgiTarihi, setGumrukBilgiTarihi] = useState(note.gumrukBilgiTarihi ?? null);
 
-  const [updateRapor, { isLoading, isSuccess, isError, error }] = useUpdateRaporMutation();
-  const [deleteNote, { isSuccess: isDelSuccess, isLoading: isDeleting, isError: isDelError, error: delError }] =
-    useDeleteNoteMutation();
+  const update = useUpdateRapor();
+  const remove = useDeleteNote();
+  const isLoading = update.isPending;
+  const isDeleting = remove.isPending;
 
-  useEffect(() => {
-    if (isSuccess) toast.success("Kayıt güncellendi");
-    if (isDelSuccess) toast.success("Kayıt silindi");
-    if (isSuccess || isDelSuccess) navigate({ to: "/dashboard/rapor" });
-  }, [isSuccess, isDelSuccess, navigate]);
-
-  const onSave = async () => {
-    await updateRapor({
-      id: note.id,
-      user: username,
-      dorse,
-      getiren,
-      goturen,
-      firma,
-      mal,
-      girisTarihi,
-      cikisTarihi,
-      gumrukBilgi,
-      gumrukBilgiTarihi,
-      guncellemeTarihi: Date.now(),
-    });
+  const done = (msg: string) => () => {
+    toast.success(msg);
+    navigate({ to: "/dashboard/rapor", search: pageSearch(page) });
   };
 
-  const onDelete = async () => {
+  const onSave = () => {
+    update.mutate(
+      {
+        id: note.id,
+        dorse,
+        getiren,
+        goturen,
+        firma,
+        mal,
+        girisTarihi,
+        cikisTarihi,
+        gumrukBilgi,
+        gumrukBilgiTarihi,
+        guncellemeTarihi: Date.now(),
+      },
+      { onSuccess: done("Kayıt güncellendi") },
+    );
+  };
+
+  const onDelete = () => {
     if (window.confirm(`${note.dorse} kaydını silmek istediğinizden emin misiniz?`)) {
-      await deleteNote({ id: note.id });
+      remove.mutate(note.id, { onSuccess: done("Kayıt silindi") });
     }
   };
 
@@ -93,6 +95,7 @@ const EditNoteForm = ({ note }) => {
       title="Çıkış Kaydını Düzenle"
       description="Rapordaki kaydın tüm bilgilerini düzeltebilirsiniz."
       backTo="/dashboard/rapor"
+      backSearch={pageSearch(page)}
       backLabel="Rapor"
       onSubmit={onSave}
       className="max-w-3xl"
@@ -110,7 +113,7 @@ const EditNoteForm = ({ note }) => {
             </Button>
           )}
           <Button variant="outline" asChild>
-            <Link to="/dashboard/rapor">Vazgeç</Link>
+            <Link to="/dashboard/rapor" search={pageSearch(page)}>Vazgeç</Link>
           </Button>
           <Button type="submit" disabled={isLoading || !dorse || !getiren}>
             {isLoading ? <Loader2 className="animate-spin" /> : <Save />} Kaydet
@@ -118,7 +121,7 @@ const EditNoteForm = ({ note }) => {
         </>
       }
     >
-      {(isError || isDelError) && <ErrorAlert message={apiErrorMessage(error ?? delError)} />}
+      {(update.error ?? remove.error) && <ErrorAlert message={apiErrorMessage(update.error ?? remove.error)} />}
 
       <section className="space-y-4">
         <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Araç</h2>

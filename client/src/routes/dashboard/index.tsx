@@ -1,4 +1,6 @@
-import { useGetNotesQuery } from "@/api/notesApiSlice";
+import { notesQuery } from "@/api/notes";
+import type { Note } from "@/api/types";
+import { useQuery } from "@tanstack/react-query";
 import { PageHeader, StatCard } from "@/components/app/page";
 import { Plate } from "@/components/app/plate";
 import { Badge } from "@/components/ui/badge";
@@ -20,17 +22,9 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/")({
+  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
   component: RouteComponent,
 });
-
-type Note = {
-  id: string;
-  dorse: string;
-  getiren: string;
-  firma?: string | null;
-  gumrukBilgi?: string | null;
-  girisTarihi?: number | null;
-};
 
 function greeting() {
   const h = new Date().getHours();
@@ -45,15 +39,7 @@ function RouteComponent() {
   const { fullname, roles, tenantName } = useAuth();
   const ability = defineAbilityFor(roles);
 
-  const { data, isSuccess } = useGetNotesQuery("notesList", {
-    pollingInterval: 30000,
-    refetchOnFocus: true,
-  });
-
-  // Park boşken backend 404 döner; bunu "0 araç" olarak ele alıyoruz.
-  const notes: Note[] = isSuccess
-    ? (data.ids.map((id: string) => data.entities[id]) as Note[])
-    : [];
+  const { data: notes = [] } = useQuery({ ...notesQuery, refetchInterval: 30000 });
 
   const startOfToday = new Date().setHours(0, 0, 0, 0);
   const todayCount = notes.filter((n) => (n.girisTarihi ?? 0) >= startOfToday).length;
@@ -61,9 +47,7 @@ function RouteComponent() {
   const longest = [...notes]
     .filter((n) => n.girisTarihi)
     .sort((a, b) => (a.girisTarihi ?? 0) - (b.girisTarihi ?? 0))[0];
-  const recent = [...notes]
-    .sort((a, b) => (b.girisTarihi ?? 0) - (a.girisTarihi ?? 0))
-    .slice(0, 6);
+  const recent: Note[] = notes.slice(0, 6); // zaten en yeni giriş üstte
 
   const quickActions = [
     ability.can("create", "notes") && {

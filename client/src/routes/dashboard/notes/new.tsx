@@ -1,14 +1,13 @@
-import { useAddNewNoteMutation } from "@/api/notesApiSlice";
+import { useAddNote } from "@/api/notes";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
 import { ErrorAlert, Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/format";
-import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, Save } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/notes/new")({
@@ -17,8 +16,7 @@ export const Route = createFileRoute("/dashboard/notes/new")({
 
 function RouteComponent() {
   useTitle("Araç Girişi");
-  const { username } = useAuth();
-  const [addNewNote, { isLoading, isSuccess, isError, error }] = useAddNewNoteMutation();
+  const addNote = useAddNote();
   const navigate = useNavigate();
 
   const [getiren, setGetiren] = useState("");
@@ -26,27 +24,19 @@ function RouteComponent() {
   const [firma, setFirma] = useState("");
   const [mal, setMal] = useState("");
 
-  useEffect(() => {
-    if (isSuccess) {
-      toast.success(`${dorse} parka giriş yaptı`);
-      navigate({ to: "/dashboard/notes" });
-    }
-    // eslint-disable-next-line
-  }, [isSuccess, navigate]);
+  const canSave = Boolean(getiren && dorse) && !addNote.isPending;
 
-  const canSave = [getiren, dorse].every(Boolean) && !isLoading;
-
-  const onSave = async () => {
-    if (canSave) {
-      await addNewNote({
-        user: username,
-        getiren,
-        dorse,
-        firma,
-        mal,
-        girisTarihi: Date.now(),
-      });
-    }
+  const onSave = () => {
+    if (!canSave) return;
+    addNote.mutate(
+      { getiren, dorse, firma, mal, girisTarihi: Date.now() },
+      {
+        onSuccess: () => {
+          toast.success(`${dorse} parka giriş yaptı`);
+          navigate({ to: "/dashboard/notes" });
+        },
+      },
+    );
   };
 
   return (
@@ -62,12 +52,12 @@ function RouteComponent() {
             <Link to="/dashboard/notes">Vazgeç</Link>
           </Button>
           <Button type="submit" disabled={!canSave}>
-            {isLoading ? <Loader2 className="animate-spin" /> : <Save />} Girişi Kaydet
+            {addNote.isPending ? <Loader2 className="animate-spin" /> : <Save />} Girişi Kaydet
           </Button>
         </>
       }
     >
-      {isError && <ErrorAlert message={apiErrorMessage(error)} />}
+      {addNote.isError && <ErrorAlert message={apiErrorMessage(addNote.error)} />}
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Dorse plakası *" htmlFor="dorse">
           <Input

@@ -1,18 +1,22 @@
-import { useGetRaporQuery } from "@/api/notesApiSlice";
-import { selectCurrentPage } from "@/appStore/pageSlice";
-import { DetailList, PageLoader } from "@/components/app/page";
+import { raporQuery } from "@/api/notes";
+import type { Note } from "@/api/types";
+import { RaporNoteGate } from "@/components/app/note-gate";
+import { DetailList } from "@/components/app/page";
 import { Plate } from "@/components/app/plate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateTime, stayDays } from "@/lib/format";
+import { pageSearch, validateRaporSearch } from "@/lib/rapor-search";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, FileCheck2, LogIn, LogOut, Pencil, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
-import { useSelector } from "react-redux";
 
-export const Route = createFileRoute("/dashboard/rapor/$noteId")({
+export const Route = createFileRoute("/dashboard/rapor/$noteId/")({
+  validateSearch: validateRaporSearch,
+  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
+  loader: ({ context, deps }) => context.queryClient.prefetchQuery(raporQuery(deps.page)),
   component: NoteDetail,
 });
 
@@ -27,17 +31,17 @@ type TimelineEvent = {
 
 function NoteDetail() {
   useTitle("Kayıt Detayı");
-  const id = useParams({
-    from: "/dashboard/rapor/$noteId",
-    select: (params) => params.noteId,
-  });
-  const page = useSelector(selectCurrentPage);
-  const { note } = useGetRaporQuery(page, {
-    selectFromResult: ({ data }) => ({ note: data?.notes.entities[id] }),
-  });
-  const { isAdmin, isManager } = useAuth();
+  const { noteId: id } = Route.useParams();
+  const { page = 1 } = Route.useSearch();
+  return (
+    <RaporNoteGate id={id} page={page}>
+      {(note) => <Detail note={note} id={id} page={page} />}
+    </RaporNoteGate>
+  );
+}
 
-  if (!note) return <PageLoader />;
+function Detail({ note, id, page }: { note: Note; id: string; page: number }) {
+  const { isAdmin, isManager } = useAuth();
 
   const events = [
     {
@@ -77,6 +81,7 @@ function NoteDetail() {
     <div className="mx-auto w-full max-w-3xl">
       <Link
         to="/dashboard/rapor"
+        search={pageSearch(page)}
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium"
       >
         <ArrowLeft className="size-4" /> Rapor
@@ -92,7 +97,7 @@ function NoteDetail() {
           </div>
           {(isAdmin || isManager) && (
             <Button asChild variant="outline" size="sm">
-              <Link to="/dashboard/rapor/$noteId/edit" params={{ noteId: id }}>
+              <Link to="/dashboard/rapor/$noteId/edit" params={{ noteId: id }} search={pageSearch(page)}>
                 <Pencil /> Düzenle
               </Link>
             </Button>

@@ -1,15 +1,14 @@
 /// <reference types="vite/client" />
-import { Outlet, createRootRoute, HeadContent, Scripts, Link } from "@tanstack/react-router";
+import { Outlet, createRootRouteWithContext, HeadContent, Scripts, Link } from "@tanstack/react-router";
+import type { QueryClient } from "@tanstack/react-query";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { useSelector } from "react-redux";
 import { Toaster } from "sonner";
-import { selectCurrentTheme } from "@/appStore/themeSlice";
-import { ThemeSync } from "@/components/app/theme";
+import { useDarkMode } from "@/lib/theme";
 import { EmptyState } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { MapPinOff } from "lucide-react";
 
-export const Route = createRootRoute({
+export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: RootComponent,
   notFoundComponent: () => (
     <div className="flex min-h-screen items-center justify-center">
@@ -28,11 +27,10 @@ export const Route = createRootRoute({
 });
 
 function RootComponent() {
-  const dark = useSelector(selectCurrentTheme);
+  const { dark } = useDarkMode();
   return (
     <>
       <HeadContent />
-      <ThemeSync />
       <Outlet />
       <Toaster richColors position="top-center" theme={dark ? "dark" : "light"} />
       <Scripts />
