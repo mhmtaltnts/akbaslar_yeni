@@ -8,7 +8,6 @@ use crate::{error::AppError, extractors::AuthUser, models::Note, response::Messa
 #[serde(rename_all = "camelCase")]
 pub struct CikisPayload {
     pub id: Uuid,
-    pub user: String,
     pub goturen: String,
     pub cikis_tarihi: Option<i64>,
 }
@@ -20,26 +19,29 @@ pub struct CikisPayload {
 // Diğer tüm handler'larımızda olduğu gibi burada da "bulunamadı" durumunu
 // AÇIKÇA kontrol ediyoruz ve ham hata sızdırmıyoruz.
 pub async fn cikis_note(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<CikisPayload>,
 ) -> Result<Json<MessageBody>, AppError> {
-    if payload.user.is_empty() || payload.goturen.is_empty() {
+    if payload.goturen.is_empty() {
         return Err(AppError::BadRequest("Tüm alanları doldurun".to_string()));
     }
 
-    let note: Option<Note> = sqlx::query_as("SELECT * FROM notes WHERE id = $1")
+    let note: Option<Note> =
+        sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)
+        .bind(user.tenant_id)
         .fetch_optional(&state.db)
         .await?;
 
     let note = note.ok_or_else(|| AppError::BadRequest("Araç kaydı bulunamadı".to_string()))?;
 
-    sqlx::query("UPDATE notes SET cikis_yapan = $1, goturen = $2, cikis_tarihi = $3 WHERE id = $4")
-        .bind(&payload.user)
+    sqlx::query("UPDATE notes SET cikis_yapan = $1, goturen = $2, cikis_tarihi = $3 WHERE id = $4 AND tenant_id = $5")
+        .bind(&user.username)
         .bind(&payload.goturen)
         .bind(payload.cikis_tarihi)
         .bind(payload.id)
+        .bind(user.tenant_id)
         .execute(&state.db)
         .await?;
 

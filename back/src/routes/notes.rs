@@ -2,11 +2,9 @@ use axum::{routing::get, Router};
 
 use crate::{handlers, state::SharedState};
 
-// routes/noteRoutes.js'in karşılığı. Orijinalde `router.use(verifyJWT)`
-// SADECE GET route'undan SONRA tanımlıydı -- yani GET herkese açık, POST/
-// PATCH/DELETE korumalıydı. Burada bunu router yapısıyla değil, handler
-// imzalarıyla ifade ediyoruz: `get_all_notes` AuthUser istemiyor, diğer
-// üçü istiyor.
+// routes/noteRoutes.js'in karşılığı. Çoklu otoparkla birlikte dört metot da
+// korumalı (AuthUser'dan gelen tenant_id gerekli); herkese açık liste
+// `/public/parks/{slug}/notes` altına taşındı.
 pub fn note_routes() -> Router<SharedState> {
     Router::new().route(
         "/",

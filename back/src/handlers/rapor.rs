@@ -34,7 +34,7 @@ pub struct RaporResponse {
 // bunu doğrudan `Option<i64>`'e çeviriyor -- tip dönüşümü sihirli değil,
 // extractor'ın bir parçası.
 pub async fn rapor(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Query(params): Query<RaporQuery>,
 ) -> Result<Json<RaporResponse>, AppError> {
@@ -42,7 +42,10 @@ pub async fn rapor(
     let skip = (page - 1) * NOTES_PER_PAGE;
 
     let count: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM notes WHERE cikis_tarihi IS NOT NULL")
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM notes WHERE tenant_id = $1 AND cikis_tarihi IS NOT NULL",
+        )
+            .bind(user.tenant_id)
             .fetch_one(&state.db)
             .await?;
 
@@ -51,10 +54,11 @@ pub async fn rapor(
     // sıralaması gibi bir "örtük zaman" tuzağı burada YOK, çünkü
     // `cikis_tarihi` zaten anlamlı bir zaman damgası.
     let notes: Vec<Note> = sqlx::query_as(
-        "SELECT * FROM notes WHERE cikis_tarihi IS NOT NULL
+        "SELECT * FROM notes WHERE tenant_id = $1 AND cikis_tarihi IS NOT NULL
          ORDER BY cikis_tarihi DESC
-         LIMIT $1 OFFSET $2",
+         LIMIT $2 OFFSET $3",
     )
+    .bind(user.tenant_id)
     .bind(NOTES_PER_PAGE)
     .bind(skip)
     .fetch_all(&state.db)
@@ -76,7 +80,6 @@ pub async fn rapor(
 #[serde(rename_all = "camelCase")]
 pub struct UpdateRaporPayload {
     pub id: Uuid,
-    pub user: String,
     pub dorse: String,
     pub getiren: String,
     pub goturen: Option<String>,
@@ -91,12 +94,14 @@ pub struct UpdateRaporPayload {
 
 // @route PATCH /rapor
 pub async fn update_rapor(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<UpdateRaporPayload>,
 ) -> Result<Json<MessageBody>, AppError> {
-    let exists: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM notes WHERE id = $1")
+    let exists: Option<(Uuid,)> =
+        sqlx::query_as("SELECT id FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)
+        .bind(user.tenant_id)
         .fetch_optional(&state.db)
         .await?;
 
@@ -109,9 +114,9 @@ pub async fn update_rapor(
          SET guncelleme_yapan = $1, dorse = $2, getiren = $3, goturen = $4, firma = $5,
              mal = $6, giris_tarihi = $7, cikis_tarihi = $8, gumruk_bilgi = $9,
              gumruk_bilgi_tarihi = $10, guncelleme_tarihi = $11
-         WHERE id = $12",
+         WHERE id = $12 AND tenant_id = $13",
     )
-    .bind(&payload.user)
+    .bind(&user.username)
     .bind(&payload.dorse)
     .bind(&payload.getiren)
     .bind(&payload.goturen)
@@ -123,6 +128,7 @@ pub async fn update_rapor(
     .bind(payload.gumruk_bilgi_tarihi)
     .bind(payload.guncelleme_tarihi)
     .bind(payload.id)
+    .bind(user.tenant_id)
     .execute(&state.db)
     .await?;
 

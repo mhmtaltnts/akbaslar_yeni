@@ -2,7 +2,7 @@ use axum::{extract::FromRequestParts, http::request::Parts};
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::{error::AppError, jwt, state::SharedState};
+use crate::{error::AppError, jwt, roles, state::SharedState};
 
 // middleware/verifyJWT.js'nin karşılığı -- ama bir "middleware" DEĞİL, bir
 // "extractor". Node'da verifyJWT, router'a `router.use(verifyJWT)` ile
@@ -20,8 +20,30 @@ use crate::{error::AppError, jwt, state::SharedState};
 #[serde(rename_all = "camelCase")]
 pub struct AuthUser {
     pub id: Uuid,
+    // İşlemi yapan kullanıcı -- kayıtlara "giriş/çıkış/gümrük/güncelleme
+    // yapan" olarak İMZALI token'dan yazılıyor, istemcinin gönderdiği bir
+    // alandan değil (kimse başkası adına işlem kaydedemesin).
+    pub username: String,
     pub fullname: String,
     pub roles: Vec<String>,
+    // Bu kullanıcının otoparkı. Otoparka ait veriye dokunan HER sorgu
+    // `WHERE tenant_id = $n` ile bunu kullanmak zorunda.
+    pub tenant_id: Uuid,
+}
+
+impl AuthUser {
+    pub fn is_super_admin(&self) -> bool {
+        self.roles.iter().any(|r| r == roles::SUPER_ADMIN)
+    }
+
+    // Sadece platform yöneticisinin erişebileceği endpoint'ler (/tenants) için.
+    pub fn require_super_admin(&self) -> Result<(), AppError> {
+        if self.is_super_admin() {
+            Ok(())
+        } else {
+            Err(AppError::Unauthorized("Bu işlem için yetkiniz yok".to_string()))
+        }
+    }
 }
 
 // Not: Node'daki orijinal kod `req.user = decoded.UserInfo.username` yazıyordu
@@ -56,8 +78,10 @@ impl FromRequestParts<SharedState> for AuthUser {
 
         Ok(AuthUser {
             id: claims.user_info.id,
+            username: claims.user_info.username,
             fullname: claims.user_info.fullname,
             roles: claims.user_info.roles,
+            tenant_id: claims.user_info.tenant_id,
         })
     }
 }

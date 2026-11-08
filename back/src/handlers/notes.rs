@@ -11,16 +11,21 @@ use crate::{
 };
 
 // @route GET /notes
-// Dikkat: parametre listesinde `AuthUser` YOK -- noteRoutes.js'te
-// `router.use(verifyJWT)` GET route'undan SONRA tanımlanmıştı, yani bu
-// endpoint Node'da da herkese açıktı. Burada da bilerek korumasız.
-pub async fn get_all_notes(State(state): State<SharedState>) -> Result<Json<Vec<Note>>, AppError> {
+// Çoklu otoparkla birlikte bu endpoint KORUMALI: hangi otoparkın araçlarının
+// listeleneceği token'daki `tenant_id`'den geliyor. Herkese açık liste
+// artık `GET /public/parks/{slug}/notes` (bkz. handlers/public.rs).
+pub async fn get_all_notes(
+    user: AuthUser,
+    State(state): State<SharedState>,
+) -> Result<Json<Vec<Note>>, AppError> {
     // `sort([['_id', -1]])` Mongo'da "en yeni üstte" demekti çünkü ObjectId
     // zaman sıralı. UUID rastgele olduğu için Ders 10'da eklediğimiz
     // `created_at` sütununa göre sıralıyoruz (bkz. migration 0002).
     let notes: Vec<Note> = sqlx::query_as(
-        "SELECT * FROM notes WHERE cikis_tarihi IS NULL ORDER BY created_at DESC",
+        "SELECT * FROM notes WHERE tenant_id = $1 AND cikis_tarihi IS NULL
+         ORDER BY created_at DESC",
     )
+    .bind(user.tenant_id)
     .fetch_all(&state.db)
     .await?;
 
@@ -36,7 +41,6 @@ pub async fn get_all_notes(State(state): State<SharedState>) -> Result<Json<Vec<
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateNotePayload {
-    pub user: String,
     pub getiren: String,
     pub dorse: String,
     pub firma: Option<String>,
@@ -46,7 +50,7 @@ pub struct CreateNotePayload {
 
 // @route POST /notes
 pub async fn create_note(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<CreateNotePayload>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -54,7 +58,12 @@ pub async fn create_note(
     // orijinalde de boş/eksik alanlarla devam ediliyordu, biz de aynı
     // şekilde burada ek bir kontrol eklemiyoruz.
     let duplicate: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM notes WHERE dorse = $1 AND cikis_tarihi IS NULL")
+        // Aynı dorse iki FARKLI otoparkta aynı anda bulunabilir; tekrar
+        // kontrolü sadece bu otopark içinde.
+        sqlx::query_as(
+            "SELECT id FROM notes WHERE tenant_id = $1 AND dorse = $2 AND cikis_tarihi IS NULL",
+        )
+            .bind(user.tenant_id)
             .bind(&payload.dorse)
             .fetch_optional(&state.db)
             .await?;
@@ -67,15 +76,16 @@ pub async fn create_note(
     }
 
     sqlx::query(
-        "INSERT INTO notes (giris_yapan, getiren, dorse, firma, mal, giris_tarihi)
-         VALUES ($1, $2, $3, $4, $5, $6)",
+        "INSERT INTO notes (giris_yapan, getiren, dorse, firma, mal, giris_tarihi, tenant_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
     )
-    .bind(&payload.user)
+    .bind(&user.username)
     .bind(&payload.getiren)
     .bind(&payload.dorse)
     .bind(&payload.firma)
     .bind(&payload.mal)
     .bind(payload.giris_tarihi)
+    .bind(user.tenant_id)
     .execute(&state.db)
     .await?;
 
@@ -86,7 +96,6 @@ pub async fn create_note(
 #[serde(rename_all = "camelCase")]
 pub struct UpdateNotePayload {
     pub id: Uuid,
-    pub user: String,
     pub getiren: String,
     pub dorse: String,
     pub firma: Option<String>,
@@ -102,12 +111,14 @@ pub struct UpdateNotePayload {
 // yüzden projenin her yerinde kullandığımız tutarlı `{message}` şekline
 // normalize ediyoruz.
 pub async fn update_note(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<UpdateNotePayload>,
 ) -> Result<Json<MessageBody>, AppError> {
-    let exists: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM notes WHERE id = $1")
+    let exists: Option<(Uuid,)> =
+        sqlx::query_as("SELECT id FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)
+        .bind(user.tenant_id)
         .fetch_optional(&state.db)
         .await?;
 
@@ -119,9 +130,9 @@ pub async fn update_note(
         "UPDATE notes
          SET guncelleme_yapan = $1, giris_tarihi = $2, guncelleme_tarihi = $3,
              getiren = $4, dorse = $5, firma = $6, mal = $7
-         WHERE id = $8",
+         WHERE id = $8 AND tenant_id = $9",
     )
-    .bind(&payload.user)
+    .bind(&user.username)
     .bind(payload.giris_tarihi)
     .bind(payload.guncelleme_tarihi)
     .bind(&payload.getiren)
@@ -129,6 +140,7 @@ pub async fn update_note(
     .bind(&payload.firma)
     .bind(&payload.mal)
     .bind(payload.id)
+    .bind(user.tenant_id)
     .execute(&state.db)
     .await?;
 
@@ -142,19 +154,22 @@ pub struct DeleteNotePayload {
 
 // @route DELETE /notes
 pub async fn delete_note(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<DeleteNotePayload>,
 ) -> Result<Json<ReplyBody>, AppError> {
-    let note: Option<Note> = sqlx::query_as("SELECT * FROM notes WHERE id = $1")
+    let note: Option<Note> =
+        sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)
+        .bind(user.tenant_id)
         .fetch_optional(&state.db)
         .await?;
 
     let note = note.ok_or_else(|| AppError::BadRequest("Araç kaydı bulunamadı".to_string()))?;
 
-    sqlx::query("DELETE FROM notes WHERE id = $1")
+    sqlx::query("DELETE FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)
+        .bind(user.tenant_id)
         .execute(&state.db)
         .await?;
 

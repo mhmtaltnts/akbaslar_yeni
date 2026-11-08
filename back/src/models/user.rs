@@ -31,4 +31,8 @@ pub struct User {
     pub password: String,
     pub roles: Vec<String>,
     pub active: bool,
+    // Kullanıcının bağlı olduğu otopark (bkz. migration 0003). JSON'a
+    // yazmıyoruz: istemci otoparkı zaten access token'dan okuyor.
+    #[serde(skip_serializing)]
+    pub tenant_id: Uuid,
 }

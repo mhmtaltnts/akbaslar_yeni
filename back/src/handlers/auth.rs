@@ -30,19 +30,40 @@ pub struct SignupPayload {
     pub fullname: String,
     pub username: String,
     pub password: String,
+    // Katılınacak otoparkın kodu (`tenants.slug`).
+    pub park: String,
 }
 
 // @route POST /auth/signup
+// Çoklu otoparkta herkese açık kayıt, kullanıcıyı otopark koduyla verilen
+// otoparka PASİF olarak ekler: aksi halde kodu bilen herkes o otoparkın
+// tüm kayıtlarına erişebilirdi. Otoparkın kurucusu kullanıcıyı
+// "Kullanıcılar" sayfasından aktif ettiğinde giriş yapılabilir.
 pub async fn signup(
     State(state): State<SharedState>,
     Json(payload): Json<SignupPayload>,
 ) -> Result<impl IntoResponse, AppError> {
-    if payload.fullname.is_empty() || payload.username.is_empty() || payload.password.is_empty() {
+    if payload.fullname.is_empty()
+        || payload.username.is_empty()
+        || payload.password.is_empty()
+        || payload.park.trim().is_empty()
+    {
         return Err(AppError::BadRequest("Tüm alanları doldurun".to_string()));
     }
 
+    let tenant_id: Option<Uuid> = sqlx::query_scalar(
+        "SELECT id FROM tenants WHERE lower(slug) = lower($1) AND active",
+    )
+    .bind(payload.park.trim())
+    .fetch_optional(&state.db)
+    .await?;
+
+    let tenant_id =
+        tenant_id.ok_or_else(|| AppError::BadRequest("Otopark kodu geçersiz".to_string()))?;
+
     // `.collation({ locale: 'en', strength: 2 })` karşılığı: case-insensitive
     // kontrol için Ders 3'te oluşturduğumuz `lower(username)` index'ini kullanıyoruz.
+    // Kullanıcı adları tüm otoparklar arasında eşsiz (bkz. migration 0003).
     let duplicate: Option<(Uuid,)> =
         sqlx::query_as("SELECT id FROM users WHERE lower(username) = lower($1)")
             .bind(&payload.username)
@@ -56,17 +77,33 @@ pub async fn signup(
     let hashed = bcrypt::hash(&payload.password, bcrypt::DEFAULT_COST)
         .map_err(|err| AppError::Internal(format!("şifre hashlenemedi: {err}")))?;
 
-    sqlx::query("INSERT INTO users (fullname, username, password) VALUES ($1, $2, $3)")
-        .bind(&payload.fullname)
-        .bind(&payload.username)
-        .bind(&hashed)
-        .execute(&state.db)
-        .await?;
+    sqlx::query(
+        "INSERT INTO users (fullname, username, password, tenant_id, active)
+         VALUES ($1, $2, $3, $4, FALSE)",
+    )
+    .bind(&payload.fullname)
+    .bind(&payload.username)
+    .bind(&hashed)
+    .bind(tenant_id)
+    .execute(&state.db)
+    .await?;
 
     Ok((
         StatusCode::CREATED,
-        Json(MessageBody::new("Kullanıcı oluşturuldu")),
+        Json(MessageBody::new(
+            "Kayıt alındı. Otopark yöneticisi hesabınızı onayladıktan sonra giriş yapabilirsiniz",
+        )),
     ))
+}
+
+// Kullanıcının otoparkını getirir; otopark pasifse (askıya alınmışsa) None.
+async fn active_tenant_name(state: &SharedState, tenant_id: Uuid) -> Result<Option<String>, AppError> {
+    let name: Option<String> =
+        sqlx::query_scalar("SELECT name FROM tenants WHERE id = $1 AND active")
+            .bind(tenant_id)
+            .fetch_optional(&state.db)
+            .await?;
+    Ok(name)
 }
 
 #[derive(Deserialize)]
@@ -106,7 +143,11 @@ pub async fn login(
         return Err(AppError::Unauthorized("Şifre Geçersiz".to_string()));
     }
 
-    let access_token = jwt::sign_access_token(&state.access_token_secret, &user)?;
+    let tenant_name = active_tenant_name(&state, user.tenant_id)
+        .await?
+        .ok_or_else(|| AppError::Unauthorized("Otopark hesabı askıya alınmış".to_string()))?;
+
+    let access_token = jwt::sign_access_token(&state.access_token_secret, &user, &tenant_name)?;
     let refresh_token = jwt::sign_refresh_token(&state.refresh_token_secret, &user)?;
 
     // `res.cookie('jwt', refreshToken, { httpOnly, secure, sameSite: 'None',
@@ -143,9 +184,18 @@ pub async fn refresh(
         .fetch_optional(&state.db)
         .await?;
 
-    let user = user.ok_or_else(|| AppError::Unauthorized("Yetkisiz".to_string()))?;
+    // Refresh, pasif edilen kullanıcıların ve askıya alınan otoparkların
+    // 7 günlük refresh cookie'siyle oturuma devam etmesini engellemeli.
+    let user = match user {
+        Some(user) if user.active => user,
+        _ => return Err(AppError::Unauthorized("Yetkisiz".to_string())),
+    };
 
-    let access_token = jwt::sign_access_token(&state.access_token_secret, &user)?;
+    let tenant_name = active_tenant_name(&state, user.tenant_id)
+        .await?
+        .ok_or_else(|| AppError::Unauthorized("Otopark hesabı askıya alınmış".to_string()))?;
+
+    let access_token = jwt::sign_access_token(&state.access_token_secret, &user, &tenant_name)?;
 
     Ok(Json(TokenResponse { access_token }))
 }

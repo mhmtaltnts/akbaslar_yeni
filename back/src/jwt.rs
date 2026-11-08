@@ -16,8 +16,18 @@ use crate::{error::AppError, models::User};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserInfo {
     pub id: Uuid,
+    // Kayıtlardaki `giris_yapan`/`cikis_yapan` vb. alanlara yazılan isim.
+    // Eskiden token'da yoktu; frontend `user: undefined` gönderiyordu.
+    pub username: String,
     pub fullname: String,
     pub roles: Vec<String>,
+    // Çoklu otopark: kullanıcının otoparkı token'ın İÇİNDE taşınıyor, böylece
+    // her istekte DB'ye sormadan sorguları doğru otoparka göre filtreliyoruz.
+    // Token imzalı olduğu için istemci bu değeri değiştiremez.
+    #[serde(rename = "tenantId")]
+    pub tenant_id: Uuid,
+    #[serde(rename = "tenantName")]
+    pub tenant_name: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -40,13 +50,20 @@ pub struct RefreshClaims {
 // -- `exp`'i KENDİMİZ hesaplayıp claims'e koymamız gerekiyor. Daha fazla
 // satır ama ne olduğu daha açık: "exp" sihirli bir string değil, gerçek bir
 // Unix timestamp.
-pub fn sign_access_token(secret: &str, user: &User) -> Result<String, AppError> {
+pub fn sign_access_token(
+    secret: &str,
+    user: &User,
+    tenant_name: &str,
+) -> Result<String, AppError> {
     let exp = (chrono::Utc::now() + chrono::Duration::minutes(15)).timestamp() as usize;
     let claims = AccessClaims {
         user_info: UserInfo {
             id: user.id,
+            username: user.username.clone(),
             fullname: user.fullname.clone(),
             roles: user.roles.clone(),
+            tenant_id: user.tenant_id,
+            tenant_name: tenant_name.to_string(),
         },
         exp,
     };
@@ -102,17 +119,21 @@ mod tests {
             password: "hashlenmis-sifre".to_string(),
             roles: vec!["Çalışan".to_string()],
             active: true,
+            tenant_id: Uuid::new_v4(),
         }
     }
 
     #[test]
     fn access_token_imzala_coz_round_trip() {
         let user = test_user();
-        let token = sign_access_token("gizli-anahtar", &user).expect("imzalanamadı");
+        let token = sign_access_token("gizli-anahtar", &user, "Test Park").expect("imzalanamadı");
 
         let claims = decode_access_token(&token, "gizli-anahtar").expect("çözülemedi");
 
         assert_eq!(claims.user_info.id, user.id);
+        assert_eq!(claims.user_info.username, user.username);
+        assert_eq!(claims.user_info.tenant_id, user.tenant_id);
+        assert_eq!(claims.user_info.tenant_name, "Test Park");
         assert_eq!(claims.user_info.fullname, user.fullname);
         assert_eq!(claims.user_info.roles, user.roles);
     }
@@ -131,7 +152,7 @@ mod tests {
     #[test]
     fn yanlis_secret_ile_cozme_basarisiz_olur() {
         let user = test_user();
-        let token = sign_access_token("dogru-anahtar", &user).expect("imzalanamadı");
+        let token = sign_access_token("dogru-anahtar", &user, "Test Park").expect("imzalanamadı");
 
         // Node'daki `jwt.verify(token, YANLIS_SECRET)` gibi: imza
         // uyuşmadığında `Err` dönmeli, panik değil.

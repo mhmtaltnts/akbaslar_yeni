@@ -30,3 +30,17 @@ pub struct Note {
     pub cikis_tarihi: Option<i64>,
     pub guncelleme_tarihi: Option<i64>,
 }
+
+// Herkese açık "Misafir Araçlar" sayfası için sadeleştirilmiş görünüm:
+// giriş yapmamış ziyaretçiye kimin işlem yaptığı, gümrük bilgisi gibi iç
+// alanları göstermiyoruz.
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct PublicNote {
+    #[serde(rename = "_id")]
+    pub id: Uuid,
+    pub getiren: String,
+    pub dorse: String,
+    pub firma: Option<String>,
+    pub giris_tarihi: Option<i64>,
+}

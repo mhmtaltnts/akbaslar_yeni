@@ -7,27 +7,44 @@ use crate::{
     extractors::AuthUser,
     models::User,
     response::{MessageBody, ReplyBody},
+    roles,
     state::SharedState,
 };
 
+// Bir otoparkın kurucusu kendi kullanıcılarına `SüperAdmin` rolü VEREMEZ
+// (yoksa tüm otoparkları yönetebilirdi), ama zaten SüperAdmin olan bir
+// kullanıcıyı düzenlerken bu rolü de SİLMEMELİ. Sadece SüperAdmin olan biri
+// bu rolü serbestçe verip alabilir.
+fn sanitize_roles(requested: Vec<String>, caller: &AuthUser, target_had_super: bool) -> Vec<String> {
+    let mut roles: Vec<String> = if caller.is_super_admin() {
+        requested
+    } else {
+        requested.into_iter().filter(|r| r != roles::SUPER_ADMIN).collect()
+    };
+    if !caller.is_super_admin() && target_had_super {
+        roles.push(roles::SUPER_ADMIN.to_string());
+    }
+    roles
+}
+
 // @route GET /users
-// `_user: AuthUser` -- parametreyi KULLANMASAK bile eklemesi bu route'u
-// korur. İsmi `_` ile başlıyor çünkü gövdede değerine ihtiyacımız yok,
-// sadece "bu route girişte doğrulansın" demek istiyoruz.
+// Sadece isteği yapanın otoparkındaki kullanıcılar.
 pub async fn get_all_users(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
 ) -> Result<Json<Vec<User>>, AppError> {
     // Ders 14: `query_as` (runtime) yerine `query_as!` (derleme zamanı
     // kontrollü). Fark: bu makro, DERLEME ANINDA `DATABASE_URL`'deki
     // gerçek Postgres'e bağlanıp "users" tablosunun sütunlarını/tiplerini
     // sorar ve `User` struct'ının alanlarıyla TİPTE eşleştiğini doğrular.
-    // Bir sütun adını yanlış yazsan, tipini uyuşmayan bir şeyle değiştirsen,
-    // ya da migration'ı unutsan -- `cargo build` SQL hatasını derleme
-    // zamanında yakalar, runtime'da 500 olarak değil.
-    let users: Vec<User> = sqlx::query_as!(User, "SELECT * FROM users")
-        .fetch_all(&state.db)
-        .await?;
+    let users: Vec<User> = sqlx::query_as!(
+        User,
+        "SELECT id, fullname, username, password, roles, active, tenant_id
+         FROM users WHERE tenant_id = $1 ORDER BY username",
+        user.tenant_id
+    )
+    .fetch_all(&state.db)
+    .await?;
 
     if users.is_empty() {
         return Err(AppError::BadRequest("Kullanıcı bulunamadı".to_string()));
@@ -38,16 +55,11 @@ pub async fn get_all_users(
 
 #[derive(Deserialize)]
 pub struct CreateUserPayload {
-    // DİKKAT -- Node'daki GERÇEK BİR HATAYI birebir koruyoruz: controller
-    // body'den `fullName` okuyor ama modelin/tablonun gerçek sütunu
-    // `fullname`. Bu alanı kabul ediyoruz (JSON'da bulunmasına izin
-    // veriyoruz) ama hiçbir yerde KULLANMIYORUZ -- aşağıdaki INSERT'te
-    // `fullname` sütunu hiç bind edilmiyor. Sonuç: bu endpoint her
-    // çağrıldığında `fullname NOT NULL` kısıtını ihlal edip 500 döner --
-    // Node'da Mongoose'un aynı sebeple fırlattığı validation hatasının
-    // Express 5 tarafından otomatik 500'e çevrilmesiyle AYNI sonuç.
+    // Frontend `fullName` gönderiyor, tablo sütunu `fullname`. Eskiden bu
+    // alan hiç kullanılmıyordu ve INSERT `fullname NOT NULL` yüzünden hep
+    // 500 dönüyordu; çoklu otoparkta kurucuların kendi personelini
+    // ekleyebilmesi gerektiği için artık gerçekten yazıyoruz.
     #[serde(rename = "fullName")]
-    #[allow(dead_code)]
     pub full_name: Option<String>,
     pub username: String,
     pub password: String,
@@ -55,8 +67,9 @@ pub struct CreateUserPayload {
 }
 
 // @route POST /users
+// Yeni kullanıcı HER ZAMAN isteği yapanın otoparkına eklenir.
 pub async fn create_user(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<CreateUserPayload>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -81,15 +94,25 @@ pub async fn create_user(
 
     // `!Array.isArray(roles) || !roles.length` karşılığı: boş/sağlanmamışsa
     // NULL bind edip tablonun DEFAULT'una (`ARRAY['Çalışan']`) bırakıyoruz.
-    let roles = payload.roles.filter(|r| !r.is_empty());
+    let roles = payload
+        .roles
+        .map(|r| sanitize_roles(r, &user, false))
+        .filter(|r| !r.is_empty());
+
+    let fullname = payload
+        .full_name
+        .filter(|f| !f.trim().is_empty())
+        .unwrap_or_else(|| payload.username.clone());
 
     sqlx::query(
-        "INSERT INTO users (username, password, roles)
-         VALUES ($1, $2, COALESCE($3, ARRAY['Çalışan']))",
+        "INSERT INTO users (fullname, username, password, roles, tenant_id)
+         VALUES ($1, $2, $3, COALESCE($4, ARRAY['Çalışan']), $5)",
     )
+    .bind(&fullname)
     .bind(&payload.username)
     .bind(&hashed)
     .bind(roles)
+    .bind(user.tenant_id)
     .execute(&state.db)
     .await?;
 
@@ -105,7 +128,7 @@ pub async fn create_user(
 #[derive(Deserialize)]
 pub struct UpdateUserPayload {
     pub id: Uuid,
-    // Aynı bug burada da var -- kabul ediliyor, hiç kullanılmıyor.
+    // Kabul ediliyor ama güncellenmiyor (Node'daki no-op davranışı korunuyor).
     #[serde(rename = "fullName")]
     #[allow(dead_code)]
     pub full_name: Option<String>,
@@ -117,7 +140,7 @@ pub struct UpdateUserPayload {
 
 // @route PATCH /users
 pub async fn update_user(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<UpdateUserPayload>,
 ) -> Result<Json<MessageBody>, AppError> {
@@ -127,14 +150,18 @@ pub async fn update_user(
         ));
     }
 
-    let exists: Option<(Uuid,)> = sqlx::query_as("SELECT id FROM users WHERE id = $1")
-        .bind(payload.id)
-        .fetch_optional(&state.db)
-        .await?;
+    // `tenant_id` filtresi: başka otoparkın kullanıcısının id'sini bilen
+    // biri onu düzenleyemesin -- "bulunamadı" ile aynı yanıtı alır.
+    let target_roles: Option<Vec<String>> =
+        sqlx::query_scalar("SELECT roles FROM users WHERE id = $1 AND tenant_id = $2")
+            .bind(payload.id)
+            .bind(user.tenant_id)
+            .fetch_optional(&state.db)
+            .await?;
 
-    if exists.is_none() {
-        return Err(AppError::BadRequest("Kullanıcı bulunamadı".to_string()));
-    }
+    let target_roles =
+        target_roles.ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?;
+    let target_had_super = target_roles.iter().any(|r| r == roles::SUPER_ADMIN);
 
     let duplicate: Option<(Uuid,)> =
         sqlx::query_as("SELECT id FROM users WHERE lower(username) = lower($1)")
@@ -150,33 +177,40 @@ pub async fn update_user(
         }
     }
 
+    let new_roles = sanitize_roles(payload.roles, &user, target_had_super);
+
     // DİKKAT: `fullname` burada da KASITLI OLARAK güncellenmiyor -- Node'daki
-    // `user.fullName = fullName` satırının no-op olmasıyla aynı (schema'da
-    // olmayan bir alana yazıp save() çağırmanın hiçbir etkisi yoktu).
+    // `user.fullName = fullName` satırının no-op olmasıyla aynı.
     match payload.password.filter(|p| !p.is_empty()) {
         Some(password) => {
             let hashed = bcrypt::hash(&password, bcrypt::DEFAULT_COST)
                 .map_err(|err| AppError::Internal(format!("şifre hashlenemedi: {err}")))?;
 
             sqlx::query(
-                "UPDATE users SET username = $1, roles = $2, active = $3, password = $4 WHERE id = $5",
+                "UPDATE users SET username = $1, roles = $2, active = $3, password = $4
+                 WHERE id = $5 AND tenant_id = $6",
             )
             .bind(&payload.username)
-            .bind(&payload.roles)
+            .bind(&new_roles)
             .bind(payload.active)
             .bind(&hashed)
             .bind(payload.id)
+            .bind(user.tenant_id)
             .execute(&state.db)
             .await?;
         }
         None => {
-            sqlx::query("UPDATE users SET username = $1, roles = $2, active = $3 WHERE id = $4")
-                .bind(&payload.username)
-                .bind(&payload.roles)
-                .bind(payload.active)
-                .bind(payload.id)
-                .execute(&state.db)
-                .await?;
+            sqlx::query(
+                "UPDATE users SET username = $1, roles = $2, active = $3
+                 WHERE id = $4 AND tenant_id = $5",
+            )
+            .bind(&payload.username)
+            .bind(&new_roles)
+            .bind(payload.active)
+            .bind(payload.id)
+            .bind(user.tenant_id)
+            .execute(&state.db)
+            .await?;
         }
     }
 
@@ -193,31 +227,34 @@ pub struct DeleteUserPayload {
 
 // @route DELETE /users
 pub async fn delete_user(
-    _user: AuthUser,
+    user: AuthUser,
     State(state): State<SharedState>,
     Json(payload): Json<DeleteUserPayload>,
 ) -> Result<Json<ReplyBody>, AppError> {
-    let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE id = $1")
-        .bind(payload.id)
-        .fetch_optional(&state.db)
-        .await?;
+    let target: Option<User> =
+        sqlx::query_as("SELECT * FROM users WHERE id = $1 AND tenant_id = $2")
+            .bind(payload.id)
+            .bind(user.tenant_id)
+            .fetch_optional(&state.db)
+            .await?;
 
-    let user = user.ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?;
+    let target = target.ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?;
 
-    sqlx::query("DELETE FROM users WHERE id = $1")
+    if target.roles.iter().any(|r| r == roles::SUPER_ADMIN) && !user.is_super_admin() {
+        return Err(AppError::Unauthorized(
+            "SüperAdmin kullanıcısını silme yetkiniz yok".to_string(),
+        ));
+    }
+
+    sqlx::query("DELETE FROM users WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)
+        .bind(user.tenant_id)
         .execute(&state.db)
         .await?;
 
-    // Node tarafında `result.username` diye bir şeye erişiyordu ama
-    // `deleteOne()`'ın sonucunda `username` alanı YOK (`{acknowledged,
-    // deletedCount}` döner) -- mesaj pratikte "undefined adında kullanıcı
-    // silindi" olurdu. Bu saf kozmetik bir hataydı (veri kaybı/işlev
-    // bozukluğu yok), elimizde zaten doğru `user.username` varken onu
-    // tekrar üretmenin hiçbir öğretici ya da pratik faydası yok.
     Ok(Json(ReplyBody::new(format!(
         "{} adında kullanıcı silindi",
-        user.username
+        target.username
     ))))
 }
 
@@ -233,9 +270,45 @@ pub async fn delete_user(
 mod tests {
     use super::*;
 
+    fn caller(roles: &[&str]) -> AuthUser {
+        AuthUser {
+            id: Uuid::new_v4(),
+            username: "x".to_string(),
+            fullname: "x".to_string(),
+            roles: roles.iter().map(|r| r.to_string()).collect(),
+            tenant_id: Uuid::new_v4(),
+        }
+    }
+
+    #[test]
+    fn kurucu_superadmin_rolu_veremez() {
+        let roles = sanitize_roles(
+            vec!["Kurucu".into(), "SüperAdmin".into()],
+            &caller(&["Kurucu"]),
+            false,
+        );
+        assert_eq!(roles, vec!["Kurucu".to_string()]);
+    }
+
+    #[test]
+    fn kurucu_mevcut_superadmin_rolunu_silemez() {
+        let roles = sanitize_roles(vec!["Kurucu".into()], &caller(&["Kurucu"]), true);
+        assert!(roles.contains(&"SüperAdmin".to_string()));
+    }
+
+    #[test]
+    fn superadmin_rolu_serbestce_yonetir() {
+        let sa = caller(&["Kurucu", "SüperAdmin"]);
+        assert_eq!(sanitize_roles(vec!["Çalışan".into()], &sa, true), vec!["Çalışan".to_string()]);
+        assert!(sanitize_roles(vec!["SüperAdmin".into()], &sa, false).contains(&"SüperAdmin".to_string()));
+    }
+
     #[sqlx::test]
     async fn case_insensitive_duplicate_kontrolu_calisir(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        sqlx::query("INSERT INTO users (fullname, username, password) VALUES ($1, $2, $3)")
+        sqlx::query(
+            "INSERT INTO users (fullname, username, password, tenant_id)
+             VALUES ($1, $2, $3, (SELECT id FROM tenants LIMIT 1))",
+        )
             .bind("Test")
             .bind("TestKullanici")
             .bind("hash")
@@ -256,7 +329,10 @@ mod tests {
 
     #[sqlx::test]
     async fn farkli_kullanici_adi_duplicate_sayilmaz(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        sqlx::query("INSERT INTO users (fullname, username, password) VALUES ($1, $2, $3)")
+        sqlx::query(
+            "INSERT INTO users (fullname, username, password, tenant_id)
+             VALUES ($1, $2, $3, (SELECT id FROM tenants LIMIT 1))",
+        )
             .bind("Test")
             .bind("TestKullanici")
             .bind("hash")

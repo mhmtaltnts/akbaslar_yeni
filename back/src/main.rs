@@ -8,6 +8,7 @@ mod logging;
 mod middleware;
 mod models;
 mod response;
+mod roles;
 mod routes;
 mod state;
 
@@ -45,6 +46,15 @@ async fn main() {
     // server.listen'a geçmiyoruz -- Node'daki "önce DB'ye bağlan, sonra
     // app.listen" sırasının aynısı.
     let pool = db::connect(&database_url).await;
+
+    // Çoklu otopark: yeni otoparkları ekleyebilecek ilk SüperAdmin'i
+    // `.env`'den oluştur (sadece o kullanıcı adı henüz yoksa).
+    if let (Ok(username), Ok(password)) = (
+        std::env::var("SUPERADMIN_USERNAME"),
+        std::env::var("SUPERADMIN_PASSWORD"),
+    ) {
+        db::ensure_super_admin(&pool, &username, &password).await;
+    }
 
     // `std::env::var` bir `Result<String, VarError>` döner (JS'teki gibi
     // `undefined` yok; ya değer vardır ya da açıkça bir hata). `.expect(...)`
@@ -89,6 +99,10 @@ async fn main() {
         .nest("/cikis", routes::cikis_routes())
         .nest("/gumruk", routes::gumruk_routes())
         .nest("/rapor", routes::rapor_routes())
+        // Çoklu otopark: otopark yönetimi (SüperAdmin) ve giriş gerektirmeyen
+        // otopark bazlı liste.
+        .nest("/tenants", routes::tenant_routes())
+        .nest("/public", routes::public_routes())
         // `app.use("/", express.static(path.join(__dirname, "public")))`
         // karşılığı. Projede `public/` altında tek şey var: `css/style.css`
         // (views/index.html ve 404.html ona `css/style.css` diye göreli bir

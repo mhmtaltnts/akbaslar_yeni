@@ -472,3 +472,29 @@ Stack kararları:
   geldi (ayrıca `ETag`/`Last-Modified` gibi HTTP cache header'larını
   `ServeDir` ücretsiz sağladı, Node'un `express.static`'i de bunu yapardı);
   `Accept: text/html` ile 404 isteğinde gerçek `404.html` içeriği döndü.
+
+## Çoklu Otopark (Multi-tenant)
+
+- **Model:** paylaşılan veritabanı + `tenant_id` sütunu (migration `0003_tenants.sql`).
+  `tenants` tablosu her otoparkı tutar; `users` ve `notes` bir otoparka bağlıdır.
+  Eski veriler varsayılan `muallimkoy` otoparkına taşındı.
+- **İzolasyon:** access token'ın `UserInfo`'su artık `tenantId`/`tenantName` taşıyor;
+  `AuthUser.tenant_id` ile otoparka ait HER sorgu `WHERE tenant_id = $n` ile
+  filtreleniyor (UPDATE/DELETE dahil). Başka otoparkın kaydının id'sini bilmek
+  işe yaramaz: "bulunamadı" döner. Token imzalı olduğu için istemci tenant'ı değiştiremez.
+- **Kullanıcı adları global eşsiz:** girişte otopark kodu sorulmuyor, otopark kullanıcıdan çıkarılıyor.
+- **SüperAdmin rolü:** `/tenants` (GET/POST/PATCH) ile otopark ekler/düzenler/askıya alır.
+  Yeni otopark, ilk "Kurucu" kullanıcısıyla birlikte tek transaction'da oluşur.
+  Kurucular bu rolü veremez/silemez (`sanitize_roles`). İlk SüperAdmin:
+  `.env`'de `SUPERADMIN_USERNAME` + `SUPERADMIN_PASSWORD` (kullanıcı yoksa açılışta
+  oluşturulur); migration ayrıca mevcut "Kurucu"lara bu rolü verir.
+- **Askıya alma:** otopark `active = false` olunca login ve refresh reddedilir,
+  herkese açık listeden çıkar.
+- **Herkese açık liste:** `GET /notes` artık korumalı; misafir listesi
+  `GET /public/parks` + `GET /public/parks/{slug}/notes` (sadece çekici/dorse/firma/giriş tarihi).
+- **Signup:** otopark kodu (`park`) ister ve kullanıcıyı PASİF oluşturur; kurucu aktif edince giriş yapılabilir.
+- **İşlemi yapan kullanıcı:** access token artık `username` da taşıyor. `giris_yapan`,
+  `gumruk_yapan`, `cikis_yapan`, `guncelleme_yapan` istemcinin gönderdiği `user`
+  alanından değil, `AuthUser.username`'den (imzalı token) yazılıyor. Eskiden
+  token'da `username` olmadığı için frontend `user: undefined` gönderiyor ve bu
+  istekler reddediliyordu.
