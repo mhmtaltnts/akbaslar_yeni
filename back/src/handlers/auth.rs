@@ -207,7 +207,19 @@ pub async fn logout(jar: CookieJar) -> Response {
         return (StatusCode::NO_CONTENT, jar).into_response();
     }
 
-    let jar = jar.remove(Cookie::from("jwt"));
+    // Silme cookie'si, login'de kurulan cookie ile AYNI path/attribute'lara
+    // sahip olmalı. `Cookie::from("jwt")` path'siz olduğundan tarayıcı onu
+    // `/auth` yolu için ayrı bir cookie sayıyor, asıl `Path=/` refresh cookie
+    // silinmiyordu: çıkış yapan kullanıcı 7 gün boyunca refresh ile yeniden
+    // oturum açabiliyordu. (Node'daki `res.clearCookie` path'i varsayılan
+    // `/` alıyordu; hata Rust'a geçişte ortaya çıkmıştı.)
+    let jar = jar.remove(
+        Cookie::build("jwt")
+            .path("/")
+            .http_only(true)
+            .secure(true)
+            .same_site(SameSite::None),
+    );
 
     (jar, Json(MessageBody::new("Cookie cleared"))).into_response()
 }
