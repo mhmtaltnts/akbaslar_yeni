@@ -45,7 +45,7 @@ pub async fn rapor(
 
     let count: i64 =
         sqlx::query_scalar(
-            "SELECT COUNT(*) FROM notes WHERE tenant_id = $1 AND cikis_tarihi IS NOT NULL",
+            "SELECT COUNT(*) FROM notes WHERE tenant_id = ?1 AND cikis_tarihi IS NOT NULL",
         )
             .bind(user.tenant_id)
             .fetch_one(&state.db)
@@ -56,9 +56,9 @@ pub async fn rapor(
     // sıralaması gibi bir "örtük zaman" tuzağı burada YOK, çünkü
     // `cikis_tarihi` zaten anlamlı bir zaman damgası.
     let notes: Vec<Note> = sqlx::query_as(
-        "SELECT * FROM notes WHERE tenant_id = $1 AND cikis_tarihi IS NOT NULL
+        "SELECT * FROM notes WHERE tenant_id = ?1 AND cikis_tarihi IS NOT NULL
          ORDER BY cikis_tarihi DESC
-         LIMIT $2 OFFSET $3",
+         LIMIT ?2 OFFSET ?3",
     )
     .bind(user.tenant_id)
     .bind(NOTES_PER_PAGE)
@@ -103,7 +103,7 @@ pub async fn update_rapor(
     user.require_manager()?;
 
     let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM notes WHERE id = $1 AND tenant_id = $2")
+        sqlx::query_as("SELECT id FROM notes WHERE id = ?1 AND tenant_id = ?2")
         .bind(payload.id)
         .bind(user.tenant_id)
         .fetch_optional(&state.db)
@@ -115,10 +115,10 @@ pub async fn update_rapor(
 
     sqlx::query(
         "UPDATE notes
-         SET guncelleme_yapan = $1, dorse = $2, getiren = $3, goturen = $4, firma = $5,
-             mal = $6, giris_tarihi = $7, cikis_tarihi = $8, gumruk_bilgi = $9,
-             gumruk_bilgi_tarihi = $10, guncelleme_tarihi = $11
-         WHERE id = $12 AND tenant_id = $13",
+         SET guncelleme_yapan = ?1, dorse = ?2, getiren = ?3, goturen = ?4, firma = ?5,
+             mal = ?6, giris_tarihi = ?7, cikis_tarihi = ?8, gumruk_bilgi = ?9,
+             gumruk_bilgi_tarihi = ?10, guncelleme_tarihi = ?11
+         WHERE id = ?12 AND tenant_id = ?13",
     )
     .bind(&user.username)
     .bind(&payload.dorse)

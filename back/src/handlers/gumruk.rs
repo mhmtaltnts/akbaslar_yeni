@@ -2,7 +2,7 @@ use axum::{extract::State, Json};
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::{error::AppError, extractors::AuthUser, models::Note, response::MessageBody, state::SharedState};
+use crate::{error::AppError, extractors::AuthUser, response::MessageBody, state::SharedState};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,24 +24,29 @@ pub async fn gumruk_note(
 
     // Memur, izinli olduğu herhangi bir otoparktaki araca gümrük bilgisi
     // girebilir; diğer kullanıcılar için bu sadece kendi otoparkları.
+    // Aracın otoparkını okuyup izin listesinde olup olmadığına Rust'ta
+    // bakıyoruz (SQLite'ta `= ANY(dizi)` yok); başka parktaki bir aracın
+    // id'sini bilen biri "bulunamadı" ile aynı yanıtı alır.
     let park_ids = user.park_ids(&state.db).await?;
-    let note: Option<Note> =
-        sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = ANY($2)")
+    let note: Option<(String, Uuid)> =
+        sqlx::query_as("SELECT dorse, tenant_id FROM notes WHERE id = ?1")
         .bind(payload.id)
-        .bind(&park_ids)
         .fetch_optional(&state.db)
         .await?;
 
-    let note = note.ok_or_else(|| AppError::BadRequest("Araç Bulunamadı".to_string()))?;
+    let (dorse, tenant_id) = note
+        .filter(|(_, tenant_id)| park_ids.contains(tenant_id))
+        .ok_or_else(|| AppError::BadRequest("Araç Bulunamadı".to_string()))?;
 
     sqlx::query(
-        "UPDATE notes SET gumruk_yapan = $1, gumruk_bilgi = $2, gumruk_bilgi_tarihi = $3 WHERE id = $4 AND tenant_id = ANY($5)",
+        "UPDATE notes SET gumruk_yapan = ?1, gumruk_bilgi = ?2, gumruk_bilgi_tarihi = ?3
+         WHERE id = ?4 AND tenant_id = ?5",
     )
     .bind(&user.username)
     .bind(&payload.gumruk_bilgi)
     .bind(payload.gumruk_bilgi_tarihi)
     .bind(payload.id)
-    .bind(&park_ids)
+    .bind(tenant_id)
     .execute(&state.db)
     .await?;
 
@@ -49,6 +54,6 @@ pub async fn gumruk_note(
     // kuralla tutarlı şekilde `{message}` + gerçek `dorse` kullanıyoruz.
     Ok(Json(MessageBody::new(format!(
         "'{}' güncellendi",
-        note.dorse
+        dorse
     ))))
 }

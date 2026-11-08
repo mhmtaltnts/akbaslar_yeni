@@ -30,7 +30,7 @@ pub async fn cikis_note(
     }
 
     let note: Option<Note> =
-        sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = $2")
+        sqlx::query_as("SELECT * FROM notes WHERE id = ?1 AND tenant_id = ?2")
         .bind(payload.id)
         .bind(user.tenant_id)
         .fetch_optional(&state.db)
@@ -38,7 +38,7 @@ pub async fn cikis_note(
 
     let note = note.ok_or_else(|| AppError::BadRequest("Araç kaydı bulunamadı".to_string()))?;
 
-    sqlx::query("UPDATE notes SET cikis_yapan = $1, goturen = $2, cikis_tarihi = $3 WHERE id = $4 AND tenant_id = $5")
+    sqlx::query("UPDATE notes SET cikis_yapan = ?1, goturen = ?2, cikis_tarihi = ?3 WHERE id = ?4 AND tenant_id = ?5")
         .bind(&user.username)
         .bind(&payload.goturen)
         .bind(payload.cikis_tarihi)

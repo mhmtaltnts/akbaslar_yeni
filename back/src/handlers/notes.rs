@@ -1,5 +1,6 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::Deserialize;
+use sqlx::{QueryBuilder, Sqlite};
 use uuid::Uuid;
 
 use crate::{
@@ -24,16 +25,21 @@ pub async fn get_all_notes(
     //
     // Gümrük memuru birden çok otoparka erişebildiği için listede her aracın
     // hangi parkta olduğu da (`park_name`) gönderiliyor.
+    //
+    // SQLite'ta dizi parametresi (`= ANY($1)`) olmadığı için `IN (?, ?, ...)`
+    // listesini `QueryBuilder` ile park sayısı kadar parametreyle kuruyoruz.
     let park_ids = user.park_ids(&state.db).await?;
-    let notes: Vec<Note> = sqlx::query_as(
+    let mut query = QueryBuilder::<Sqlite>::new(
         "SELECT n.*, t.name AS park_name FROM notes n
          JOIN tenants t ON t.id = n.tenant_id
-         WHERE n.tenant_id = ANY($1) AND n.cikis_tarihi IS NULL
-         ORDER BY n.created_at DESC",
-    )
-    .bind(&park_ids)
-    .fetch_all(&state.db)
-    .await?;
+         WHERE n.cikis_tarihi IS NULL AND n.tenant_id IN (",
+    );
+    let mut ids = query.separated(", ");
+    for id in &park_ids {
+        ids.push_bind(id);
+    }
+    query.push(") ORDER BY n.created_at DESC");
+    let notes: Vec<Note> = query.build_query_as().fetch_all(&state.db).await?;
 
     if notes.is_empty() {
         return Err(AppError::NotFound(
@@ -69,7 +75,7 @@ pub async fn create_note(
         // Aynı dorse iki FARKLI otoparkta aynı anda bulunabilir; tekrar
         // kontrolü sadece bu otopark içinde.
         sqlx::query_as(
-            "SELECT id FROM notes WHERE tenant_id = $1 AND dorse = $2 AND cikis_tarihi IS NULL",
+            "SELECT id FROM notes WHERE tenant_id = ?1 AND dorse = ?2 AND cikis_tarihi IS NULL",
         )
             .bind(user.tenant_id)
             .bind(&payload.dorse)
@@ -84,9 +90,10 @@ pub async fn create_note(
     }
 
     sqlx::query(
-        "INSERT INTO notes (giris_yapan, getiren, dorse, firma, mal, giris_tarihi, tenant_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "INSERT INTO notes (id, giris_yapan, getiren, dorse, firma, mal, giris_tarihi, tenant_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )
+    .bind(Uuid::new_v4())
     .bind(&user.username)
     .bind(&payload.getiren)
     .bind(&payload.dorse)
@@ -126,7 +133,7 @@ pub async fn update_note(
     user.require_not_officer()?;
 
     let giris_yapan: Option<Option<String>> =
-        sqlx::query_scalar("SELECT giris_yapan FROM notes WHERE id = $1 AND tenant_id = $2")
+        sqlx::query_scalar("SELECT giris_yapan FROM notes WHERE id = ?1 AND tenant_id = ?2")
         .bind(payload.id)
         .bind(user.tenant_id)
         .fetch_optional(&state.db)
@@ -144,9 +151,9 @@ pub async fn update_note(
 
     sqlx::query(
         "UPDATE notes
-         SET guncelleme_yapan = $1, giris_tarihi = $2, guncelleme_tarihi = $3,
-             getiren = $4, dorse = $5, firma = $6, mal = $7
-         WHERE id = $8 AND tenant_id = $9",
+         SET guncelleme_yapan = ?1, giris_tarihi = ?2, guncelleme_tarihi = ?3,
+             getiren = ?4, dorse = ?5, firma = ?6, mal = ?7
+         WHERE id = ?8 AND tenant_id = ?9",
     )
     .bind(&user.username)
     .bind(payload.giris_tarihi)
@@ -177,7 +184,7 @@ pub async fn delete_note(
     user.require_manager()?;
 
     let note: Option<Note> =
-        sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = $2")
+        sqlx::query_as("SELECT * FROM notes WHERE id = ?1 AND tenant_id = ?2")
         .bind(payload.id)
         .bind(user.tenant_id)
         .fetch_optional(&state.db)
@@ -185,7 +192,7 @@ pub async fn delete_note(
 
     let note = note.ok_or_else(|| AppError::BadRequest("Araç kaydı bulunamadı".to_string()))?;
 
-    sqlx::query("DELETE FROM notes WHERE id = $1 AND tenant_id = $2")
+    sqlx::query("DELETE FROM notes WHERE id = ?1 AND tenant_id = ?2")
         .bind(payload.id)
         .bind(user.tenant_id)
         .execute(&state.db)

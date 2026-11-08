@@ -1,11 +1,12 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::Deserialize;
+use sqlx::types::Json as SqlJson;
 use uuid::Uuid;
 
 use crate::{
     error::AppError,
     extractors::AuthUser,
-    models::User,
+    models::{username_key, User},
     response::{MessageBody, ReplyBody},
     roles,
     state::SharedState,
@@ -35,16 +36,16 @@ pub async fn get_all_users(
 ) -> Result<Json<Vec<User>>, AppError> {
     user.require_admin()?;
 
-    // Ders 14: `query_as` (runtime) yerine `query_as!` (derleme zamanı
-    // kontrollü). Fark: bu makro, DERLEME ANINDA `DATABASE_URL`'deki
-    // gerçek Postgres'e bağlanıp "users" tablosunun sütunlarını/tiplerini
-    // sorar ve `User` struct'ının alanlarıyla TİPTE eşleştiğini doğrular.
-    let users: Vec<User> = sqlx::query_as!(
-        User,
-        "SELECT id, fullname, username, password, roles, active, tenant_id
-         FROM users WHERE tenant_id = $1 ORDER BY username",
-        user.tenant_id
+    // Ders 14'te burada `query_as!` (derleme zamanında gerçek veritabanına
+    // bağlanıp sütun tiplerini doğrulayan makro) vardı. SQLite'a geçince
+    // `roles` sütunu JSON metni oldu; makro bunu `Vec<String>`'e kendisi
+    // eşleyemiyor ve derleme için her makinede şeması kurulmuş bir veritabanı
+    // dosyası gerektiriyordu. Diğer sorgular gibi runtime `query_as`'e döndük;
+    // `User` üzerindeki `#[sqlx(json)]` dönüşümü burada da çalışıyor.
+    let users: Vec<User> = sqlx::query_as(
+        "SELECT * FROM users WHERE tenant_id = ?1 ORDER BY username",
     )
+    .bind(user.tenant_id)
     .fetch_all(&state.db)
     .await?;
 
@@ -82,8 +83,8 @@ pub async fn create_user(
     }
 
     let duplicate: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM users WHERE lower(username) = lower($1)")
-            .bind(&payload.username)
+        sqlx::query_as("SELECT id FROM users WHERE username_key = ?1")
+            .bind(username_key(&payload.username))
             .fetch_optional(&state.db)
             .await?;
 
@@ -97,11 +98,12 @@ pub async fn create_user(
         .map_err(|err| AppError::Internal(format!("şifre hashlenemedi: {err}")))?;
 
     // `!Array.isArray(roles) || !roles.length` karşılığı: boş/sağlanmamışsa
-    // NULL bind edip tablonun DEFAULT'una (`ARRAY['Çalışan']`) bırakıyoruz.
+    // varsayılan rol "Çalışan".
     let roles = payload
         .roles
         .map(|r| sanitize_roles(r, &user, false))
-        .filter(|r| !r.is_empty());
+        .filter(|r| !r.is_empty())
+        .unwrap_or_else(|| vec![roles::EMPLOYEE.to_string()]);
 
     let fullname = payload
         .full_name
@@ -109,13 +111,15 @@ pub async fn create_user(
         .unwrap_or_else(|| payload.username.clone());
 
     sqlx::query(
-        "INSERT INTO users (fullname, username, password, roles, tenant_id)
-         VALUES ($1, $2, $3, COALESCE($4, ARRAY['Çalışan']), $5)",
+        "INSERT INTO users (id, fullname, username, username_key, password, roles, tenant_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )
+    .bind(Uuid::new_v4())
     .bind(&fullname)
     .bind(&payload.username)
+    .bind(username_key(&payload.username))
     .bind(&hashed)
-    .bind(roles)
+    .bind(SqlJson(&roles))
     .bind(user.tenant_id)
     .execute(&state.db)
     .await?;
@@ -158,20 +162,21 @@ pub async fn update_user(
 
     // `tenant_id` filtresi: başka otoparkın kullanıcısının id'sini bilen
     // biri onu düzenleyemesin -- "bulunamadı" ile aynı yanıtı alır.
-    let target_roles: Option<Vec<String>> =
-        sqlx::query_scalar("SELECT roles FROM users WHERE id = $1 AND tenant_id = $2")
+    let target_roles: Option<SqlJson<Vec<String>>> =
+        sqlx::query_scalar("SELECT roles FROM users WHERE id = ?1 AND tenant_id = ?2")
             .bind(payload.id)
             .bind(user.tenant_id)
             .fetch_optional(&state.db)
             .await?;
 
-    let target_roles =
-        target_roles.ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?;
+    let target_roles = target_roles
+        .ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?
+        .0;
     let target_had_super = target_roles.iter().any(|r| r == roles::SUPER_ADMIN);
 
     let duplicate: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM users WHERE lower(username) = lower($1)")
-            .bind(&payload.username)
+        sqlx::query_as("SELECT id FROM users WHERE username_key = ?1")
+            .bind(username_key(&payload.username))
             .fetch_optional(&state.db)
             .await?;
 
@@ -193,28 +198,31 @@ pub async fn update_user(
                 .map_err(|err| AppError::Internal(format!("şifre hashlenemedi: {err}")))?;
 
             sqlx::query(
-                "UPDATE users SET username = $1, roles = $2, active = $3, password = $4
-                 WHERE id = $5 AND tenant_id = $6",
+                "UPDATE users SET username = ?1, roles = ?2, active = ?3, password = ?4,
+                     username_key = ?7
+                 WHERE id = ?5 AND tenant_id = ?6",
             )
             .bind(&payload.username)
-            .bind(&new_roles)
+            .bind(SqlJson(&new_roles))
             .bind(payload.active)
             .bind(&hashed)
             .bind(payload.id)
             .bind(user.tenant_id)
+            .bind(username_key(&payload.username))
             .execute(&state.db)
             .await?;
         }
         None => {
             sqlx::query(
-                "UPDATE users SET username = $1, roles = $2, active = $3
-                 WHERE id = $4 AND tenant_id = $5",
+                "UPDATE users SET username = ?1, roles = ?2, active = ?3, username_key = ?6
+                 WHERE id = ?4 AND tenant_id = ?5",
             )
             .bind(&payload.username)
-            .bind(&new_roles)
+            .bind(SqlJson(&new_roles))
             .bind(payload.active)
             .bind(payload.id)
             .bind(user.tenant_id)
+            .bind(username_key(&payload.username))
             .execute(&state.db)
             .await?;
         }
@@ -240,7 +248,7 @@ pub async fn delete_user(
     user.require_admin()?;
 
     let target: Option<User> =
-        sqlx::query_as("SELECT * FROM users WHERE id = $1 AND tenant_id = $2")
+        sqlx::query_as("SELECT * FROM users WHERE id = ?1 AND tenant_id = ?2")
             .bind(payload.id)
             .bind(user.tenant_id)
             .fetch_optional(&state.db)
@@ -254,7 +262,7 @@ pub async fn delete_user(
         ));
     }
 
-    sqlx::query("DELETE FROM users WHERE id = $1 AND tenant_id = $2")
+    sqlx::query("DELETE FROM users WHERE id = ?1 AND tenant_id = ?2")
         .bind(payload.id)
         .bind(user.tenant_id)
         .execute(&state.db)
@@ -267,13 +275,11 @@ pub async fn delete_user(
 }
 
 // Ders 14: `#[sqlx::test]` -- buraya kadarki testlerin (`error.rs`, `jwt.rs`)
-// aksine bu GERÇEK bir Postgres'e ihtiyaç duyuyor: `lower(username)` ile
-// case-insensitive eşleşme mantığı veritabanı davranışının kendisi, mock'la
-// taklit edilemez. Makro, `.env`'deki DATABASE_URL'in sunucusunda testin
-// kendi TEK KULLANIMLIK veritabanını oluşturur, `migrations/`i çalıştırır,
-// test bitince siler -- dev veritabanımıza (akbaslar_postgres) hiç
-// dokunmaz, testler arasında paylaşılan state yüzünden testler birbirini
-// etkilemez.
+// aksine bu GERÇEK bir veritabanına ihtiyaç duyuyor: case-insensitive
+// eşleşme mantığı veritabanı davranışının (eşsiz index) kendisi, mock'la
+// taklit edilemez. SQLite'ta makro her test için geçici, tek kullanımlık bir
+// veritabanı dosyası oluşturur, `migrations/`i çalıştırır, test bitince
+// siler -- dev veritabanımıza hiç dokunmaz.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -311,49 +317,62 @@ mod tests {
         assert!(sanitize_roles(vec!["SüperAdmin".into()], &sa, false).contains(&"SüperAdmin".to_string()));
     }
 
-    #[sqlx::test]
-    async fn case_insensitive_duplicate_kontrolu_calisir(pool: sqlx::PgPool) -> sqlx::Result<()> {
+    async fn insert_user(pool: &sqlx::SqlitePool, username: &str) -> sqlx::Result<()> {
         sqlx::query(
-            "INSERT INTO users (fullname, username, password, tenant_id)
-             VALUES ($1, $2, $3, (SELECT id FROM tenants LIMIT 1))",
+            "INSERT INTO users (id, fullname, username, username_key, password, tenant_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, (SELECT id FROM tenants LIMIT 1))",
         )
-            .bind("Test")
-            .bind("TestKullanici")
-            .bind("hash")
-            .execute(&pool)
-            .await?;
+        .bind(Uuid::new_v4())
+        .bind("Test")
+        .bind(username)
+        .bind(username_key(username))
+        .bind("hash")
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
 
-        // signup/create_user'daki AYNI sorgu -- farklı harf büyüklüğüyle
-        // bile eşleşmeli.
-        let duplicate: Option<(Uuid,)> =
-            sqlx::query_as("SELECT id FROM users WHERE lower(username) = lower($1)")
-                .bind("testkullanici")
-                .fetch_optional(&pool)
-                .await?;
+    // signup/create_user'daki AYNI sorgu.
+    async fn find_duplicate(pool: &sqlx::SqlitePool, username: &str) -> sqlx::Result<Option<(Uuid,)>> {
+        sqlx::query_as("SELECT id FROM users WHERE username_key = ?1")
+            .bind(username_key(username))
+            .fetch_optional(pool)
+            .await
+    }
 
-        assert!(duplicate.is_some());
+    #[sqlx::test]
+    async fn case_insensitive_duplicate_kontrolu_calisir(pool: sqlx::SqlitePool) -> sqlx::Result<()> {
+        insert_user(&pool, "TestKullanici").await?;
+        assert!(find_duplicate(&pool, "testkullanici").await?.is_some());
+        Ok(())
+    }
+
+    // SQLite'ın `lower()`'ı bunu yakalayamazdı (sadece ASCII); `username_key`
+    // sütunu yakalıyor.
+    #[sqlx::test]
+    async fn turkce_karakterli_duplicate_yakalanir(pool: sqlx::SqlitePool) -> sqlx::Result<()> {
+        insert_user(&pool, "ÇALIŞAN_ÖĞÜ").await?;
+        assert!(find_duplicate(&pool, "çalışan_öğü").await?.is_some());
+        // Eşsiz index de aynı kuralı veritabanı seviyesinde uyguluyor.
+        assert!(insert_user(&pool, "çalışan_öğü").await.is_err());
         Ok(())
     }
 
     #[sqlx::test]
-    async fn farkli_kullanici_adi_duplicate_sayilmaz(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        sqlx::query(
-            "INSERT INTO users (fullname, username, password, tenant_id)
-             VALUES ($1, $2, $3, (SELECT id FROM tenants LIMIT 1))",
-        )
-            .bind("Test")
-            .bind("TestKullanici")
-            .bind("hash")
-            .execute(&pool)
+    async fn farkli_kullanici_adi_duplicate_sayilmaz(pool: sqlx::SqlitePool) -> sqlx::Result<()> {
+        insert_user(&pool, "TestKullanici").await?;
+        assert!(find_duplicate(&pool, "baska_kullanici").await?.is_none());
+        Ok(())
+    }
+
+    // Rollerin JSON olarak yazılıp `User.roles`'a geri okunması.
+    #[sqlx::test]
+    async fn roller_json_olarak_okunur(pool: sqlx::SqlitePool) -> sqlx::Result<()> {
+        insert_user(&pool, "rolcu").await?;
+        let user: User = sqlx::query_as("SELECT * FROM users WHERE username = 'rolcu'")
+            .fetch_one(&pool)
             .await?;
-
-        let duplicate: Option<(Uuid,)> =
-            sqlx::query_as("SELECT id FROM users WHERE lower(username) = lower($1)")
-                .bind("baska_kullanici")
-                .fetch_optional(&pool)
-                .await?;
-
-        assert!(duplicate.is_none());
+        assert_eq!(user.roles, vec!["Çalışan".to_string()]);
         Ok(())
     }
 }

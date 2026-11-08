@@ -24,7 +24,7 @@ pub struct Note {
     pub gumruk_yapan: Option<String>,
     pub cikis_yapan: Option<String>,
     pub guncelleme_yapan: Option<String>,
-    // Mongoose'daki `Number` (epoch) karşılığı: Postgres'te BIGINT, Rust'ta i64.
+    // Mongoose'daki `Number` (epoch) karşılığı: SQLite'ta INTEGER, Rust'ta i64.
     pub giris_tarihi: Option<i64>,
     pub gumruk_bilgi_tarihi: Option<i64>,
     pub cikis_tarihi: Option<i64>,

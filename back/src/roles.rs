@@ -1,4 +1,5 @@
 // Rol adları. Frontend'deki `utils/config/roles.ts` ile aynı string'ler.
+pub const EMPLOYEE: &str = "Çalışan";
 pub const ADMIN: &str = "Kurucu";
 pub const MANAGER: &str = "Yönetici";
 

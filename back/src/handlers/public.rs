@@ -35,7 +35,7 @@ pub async fn get_public_notes(
     Path(slug): Path<String>,
 ) -> Result<Json<Vec<PublicNote>>, AppError> {
     let tenant_id: Option<Uuid> =
-        sqlx::query_scalar("SELECT id FROM tenants WHERE lower(slug) = lower($1) AND active")
+        sqlx::query_scalar("SELECT id FROM tenants WHERE lower(slug) = lower(?1) AND active")
             .bind(&slug)
             .fetch_optional(&state.db)
             .await?;
@@ -45,7 +45,7 @@ pub async fn get_public_notes(
 
     let notes: Vec<PublicNote> = sqlx::query_as(
         "SELECT id, getiren, dorse, firma, giris_tarihi FROM notes
-         WHERE tenant_id = $1 AND cikis_tarihi IS NULL
+         WHERE tenant_id = ?1 AND cikis_tarihi IS NULL
          ORDER BY created_at DESC",
     )
     .bind(tenant_id)

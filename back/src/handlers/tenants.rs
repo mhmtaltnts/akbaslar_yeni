@@ -2,8 +2,16 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use std::collections::HashMap;
+
+use sqlx::types::Json as SqlJson;
+
 use crate::{
-    error::AppError, extractors::AuthUser, models::Tenant, response::MessageBody, roles,
+    error::AppError,
+    extractors::AuthUser,
+    models::{username_key, Tenant},
+    response::MessageBody,
+    roles,
     state::SharedState,
 };
 
@@ -76,7 +84,7 @@ pub async fn create_tenant(
     }
 
     let slug_taken: Option<Uuid> =
-        sqlx::query_scalar("SELECT id FROM tenants WHERE lower(slug) = $1")
+        sqlx::query_scalar("SELECT id FROM tenants WHERE lower(slug) = ?1")
             .bind(&slug)
             .fetch_optional(&state.db)
             .await?;
@@ -85,8 +93,8 @@ pub async fn create_tenant(
     }
 
     let username_taken: Option<Uuid> =
-        sqlx::query_scalar("SELECT id FROM users WHERE lower(username) = lower($1)")
-            .bind(admin.username.trim())
+        sqlx::query_scalar("SELECT id FROM users WHERE username_key = ?1")
+            .bind(username_key(admin.username.trim()))
             .fetch_optional(&state.db)
             .await?;
     if username_taken.is_some() {
@@ -100,23 +108,25 @@ pub async fn create_tenant(
     // aradaki herhangi bir `?` erken dönüşü transaction'ı güvenle geri alır.
     let mut tx = state.db.begin().await?;
 
-    let tenant_id: Uuid = sqlx::query_scalar(
-        "INSERT INTO tenants (name, slug, address) VALUES ($1, $2, $3) RETURNING id",
-    )
+    let tenant_id = Uuid::new_v4();
+    sqlx::query("INSERT INTO tenants (id, name, slug, address) VALUES (?1, ?2, ?3, ?4)")
+    .bind(tenant_id)
     .bind(payload.name.trim())
     .bind(&slug)
     .bind(payload.address.as_deref().map(str::trim).filter(|a| !a.is_empty()))
-    .fetch_one(&mut *tx)
+    .execute(&mut *tx)
     .await?;
 
     sqlx::query(
-        "INSERT INTO users (fullname, username, password, roles, tenant_id)
-         VALUES ($1, $2, $3, $4, $5)",
+        "INSERT INTO users (id, fullname, username, username_key, password, roles, tenant_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )
+    .bind(Uuid::new_v4())
     .bind(admin.fullname.trim())
     .bind(admin.username.trim())
+    .bind(username_key(admin.username.trim()))
     .bind(&hashed)
-    .bind(vec![roles::ADMIN.to_string()])
+    .bind(SqlJson(vec![roles::ADMIN]))
     .bind(tenant_id)
     .execute(&mut *tx)
     .await?;
@@ -161,7 +171,7 @@ pub async fn update_tenant(
     }
 
     let slug_owner: Option<Uuid> =
-        sqlx::query_scalar("SELECT id FROM tenants WHERE lower(slug) = $1")
+        sqlx::query_scalar("SELECT id FROM tenants WHERE lower(slug) = ?1")
             .bind(&slug)
             .fetch_optional(&state.db)
             .await?;
@@ -170,7 +180,7 @@ pub async fn update_tenant(
     }
 
     let result = sqlx::query(
-        "UPDATE tenants SET name = $1, slug = $2, address = $3, active = $4 WHERE id = $5",
+        "UPDATE tenants SET name = ?1, slug = ?2, address = ?3, active = ?4 WHERE id = ?5",
     )
     .bind(payload.name.trim())
     .bind(&slug)
@@ -192,10 +202,10 @@ struct OfficerRow {
     id: Uuid,
     fullname: String,
     username: String,
+    #[sqlx(json)]
     roles: Vec<String>,
     tenant_id: Uuid,
     tenant_name: String,
-    park_ids: Vec<Uuid>,
 }
 
 #[derive(Serialize)]
@@ -220,20 +230,28 @@ pub async fn get_officers(
 ) -> Result<Json<Vec<Officer>>, AppError> {
     user.require_super_admin()?;
 
+    // `roles` JSON dizisi: SQLite'ta `= ANY(dizi)` yerine `json_each` ile
+    // dizinin elemanlarını satır gibi tarıyoruz.
     let rows: Vec<OfficerRow> = sqlx::query_as(
-        "SELECT u.id, u.fullname, u.username, u.roles, u.tenant_id, t.name AS tenant_name,
-                COALESCE(array_agg(op.tenant_id) FILTER (WHERE op.tenant_id IS NOT NULL), '{}')
-                    AS park_ids
+        "SELECT u.id, u.fullname, u.username, u.roles, u.tenant_id, t.name AS tenant_name
          FROM users u
          JOIN tenants t ON t.id = u.tenant_id
-         LEFT JOIN officer_parks op ON op.user_id = u.id
-         WHERE $1 = ANY (u.roles)
-         GROUP BY u.id, t.name
+         WHERE EXISTS (SELECT 1 FROM json_each(u.roles) WHERE value = ?1)
          ORDER BY u.username",
     )
     .bind(roles::OFFICER)
     .fetch_all(&state.db)
     .await?;
+
+    // Postgres'teki `array_agg` yerine izinleri ayrı çekip Rust'ta grupluyoruz.
+    let grants: Vec<(Uuid, Uuid)> =
+        sqlx::query_as("SELECT user_id, tenant_id FROM officer_parks")
+            .fetch_all(&state.db)
+            .await?;
+    let mut park_ids: HashMap<Uuid, Vec<Uuid>> = HashMap::new();
+    for (user_id, tenant_id) in grants {
+        park_ids.entry(user_id).or_default().push(tenant_id);
+    }
 
     // Memur rolüyle birlikte Kurucu/Yönetici olanlar zaten kısıtsız; onları
     // listelemiyoruz (bkz. `roles::is_officer`).
@@ -246,7 +264,7 @@ pub async fn get_officers(
             username: r.username,
             home_park_id: r.tenant_id,
             home_park_name: r.tenant_name,
-            park_ids: r.park_ids,
+            park_ids: park_ids.remove(&r.id).unwrap_or_default(),
         })
         .collect();
 
@@ -269,33 +287,37 @@ pub async fn set_officer_parks(
 ) -> Result<Json<MessageBody>, AppError> {
     user.require_super_admin()?;
 
-    let target: Option<(String, Vec<String>, Uuid)> =
-        sqlx::query_as("SELECT username, roles, tenant_id FROM users WHERE id = $1")
+    let target: Option<(String, SqlJson<Vec<String>>, Uuid)> =
+        sqlx::query_as("SELECT username, roles, tenant_id FROM users WHERE id = ?1")
             .bind(payload.user_id)
             .fetch_optional(&state.db)
             .await?;
-    let (username, target_roles, home_park) =
+    let (username, SqlJson(target_roles), home_park) =
         target.ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?;
     if !roles::is_officer(&target_roles) {
         return Err(AppError::BadRequest("Kullanıcı gümrük memuru değil".to_string()));
     }
 
     let mut tx = state.db.begin().await?;
-    sqlx::query("DELETE FROM officer_parks WHERE user_id = $1")
+    sqlx::query("DELETE FROM officer_parks WHERE user_id = ?1")
         .bind(payload.user_id)
         .execute(&mut *tx)
         .await?;
     // `FROM tenants` üzerinden ekleyerek var olmayan otopark id'lerini
     // sessizce eliyoruz; memurun kendi otoparkı zaten her zaman açık.
-    sqlx::query(
-        "INSERT INTO officer_parks (user_id, tenant_id)
-         SELECT $1, id FROM tenants WHERE id = ANY($2) AND id <> $3",
-    )
-    .bind(payload.user_id)
-    .bind(&payload.park_ids)
-    .bind(home_park)
-    .execute(&mut *tx)
-    .await?;
+    // (SQLite'ta dizi parametresi yok: her otopark için ayrı INSERT; hepsi
+    // aynı transaction içinde.)
+    for park_id in &payload.park_ids {
+        sqlx::query(
+            "INSERT OR IGNORE INTO officer_parks (user_id, tenant_id)
+             SELECT ?1, id FROM tenants WHERE id = ?2 AND id <> ?3",
+        )
+        .bind(payload.user_id)
+        .bind(park_id)
+        .bind(home_park)
+        .execute(&mut *tx)
+        .await?;
+    }
     tx.commit().await?;
 
     Ok(Json(MessageBody::new(format!("{username} için otopark izinleri güncellendi"))))

@@ -1,6 +1,6 @@
 use axum::{extract::FromRequestParts, http::request::Parts};
 use serde::Serialize;
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use uuid::Uuid;
 
 use crate::{error::AppError, jwt, roles, state::SharedState};
@@ -28,7 +28,7 @@ pub struct AuthUser {
     pub fullname: String,
     pub roles: Vec<String>,
     // Bu kullanıcının otoparkı. Otoparka ait veriye dokunan HER sorgu
-    // `WHERE tenant_id = $n` ile bunu kullanmak zorunda.
+    // `WHERE tenant_id = ?n` ile bunu kullanmak zorunda.
     pub tenant_id: Uuid,
 }
 
@@ -93,13 +93,13 @@ impl AuthUser {
     // sadece kendi otoparkı; memur için ayrıca SüperAdmin'in izin verdiği
     // (ve askıda olmayan) otoparklar. İzinler token'a değil DB'ye bakılarak
     // okunuyor, böylece SüperAdmin'in değişikliği anında geçerli oluyor.
-    pub async fn park_ids(&self, db: &PgPool) -> Result<Vec<Uuid>, AppError> {
+    pub async fn park_ids(&self, db: &SqlitePool) -> Result<Vec<Uuid>, AppError> {
         let mut ids = vec![self.tenant_id];
         if self.is_officer() {
             let extra: Vec<Uuid> = sqlx::query_scalar(
                 "SELECT op.tenant_id FROM officer_parks op
                  JOIN tenants t ON t.id = op.tenant_id
-                 WHERE op.user_id = $1 AND t.active AND op.tenant_id <> $2",
+                 WHERE op.user_id = ?1 AND t.active AND op.tenant_id <> ?2",
             )
             .bind(self.id)
             .bind(self.tenant_id)

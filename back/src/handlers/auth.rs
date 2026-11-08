@@ -14,7 +14,7 @@ use uuid::Uuid;
 use crate::{
     error::AppError,
     jwt::{self, RefreshClaims},
-    models::User,
+    models::{username_key, User},
     response::MessageBody,
     state::SharedState,
 };
@@ -52,7 +52,7 @@ pub async fn signup(
     }
 
     let tenant_id: Option<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM tenants WHERE lower(slug) = lower($1) AND active",
+        "SELECT id FROM tenants WHERE lower(slug) = lower(?1) AND active",
     )
     .bind(payload.park.trim())
     .fetch_optional(&state.db)
@@ -62,11 +62,11 @@ pub async fn signup(
         tenant_id.ok_or_else(|| AppError::BadRequest("Otopark kodu geçersiz".to_string()))?;
 
     // `.collation({ locale: 'en', strength: 2 })` karşılığı: case-insensitive
-    // kontrol için Ders 3'te oluşturduğumuz `lower(username)` index'ini kullanıyoruz.
-    // Kullanıcı adları tüm otoparklar arasında eşsiz (bkz. migration 0003).
+    // kontrol `username_key` sütunu üzerinden (bkz. models::username_key).
+    // Kullanıcı adları tüm otoparklar arasında eşsiz.
     let duplicate: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM users WHERE lower(username) = lower($1)")
-            .bind(&payload.username)
+        sqlx::query_as("SELECT id FROM users WHERE username_key = ?1")
+            .bind(username_key(&payload.username))
             .fetch_optional(&state.db)
             .await?;
 
@@ -78,11 +78,13 @@ pub async fn signup(
         .map_err(|err| AppError::Internal(format!("şifre hashlenemedi: {err}")))?;
 
     sqlx::query(
-        "INSERT INTO users (fullname, username, password, tenant_id, active)
-         VALUES ($1, $2, $3, $4, FALSE)",
+        "INSERT INTO users (id, fullname, username, username_key, password, tenant_id, active)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, FALSE)",
     )
+    .bind(Uuid::new_v4())
     .bind(&payload.fullname)
     .bind(&payload.username)
+    .bind(username_key(&payload.username))
     .bind(&hashed)
     .bind(tenant_id)
     .execute(&state.db)
@@ -99,7 +101,7 @@ pub async fn signup(
 // Kullanıcının otoparkını getirir; otopark pasifse (askıya alınmışsa) None.
 async fn active_tenant_name(state: &SharedState, tenant_id: Uuid) -> Result<Option<String>, AppError> {
     let name: Option<String> =
-        sqlx::query_scalar("SELECT name FROM tenants WHERE id = $1 AND active")
+        sqlx::query_scalar("SELECT name FROM tenants WHERE id = ?1 AND active")
             .bind(tenant_id)
             .fetch_optional(&state.db)
             .await?;
@@ -126,7 +128,7 @@ pub async fn login(
     // signup'taki duplicate kontrolünün aksine CASE-SENSITIVE. Bu muhtemelen
     // orijinal projede bilinçsiz bir tutarsızlık, ama şimdilik davranışı
     // birebir koruyoruz (frontend buna göre çalışıyor olabilir).
-    let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = $1")
+    let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = ?1")
         .bind(&payload.username)
         .fetch_optional(&state.db)
         .await?;
@@ -179,7 +181,7 @@ pub async fn refresh(
         jwt::decode_refresh_token(&refresh_token, &state.refresh_token_secret)
             .map_err(|_| AppError::Forbidden("İmza snasında bir hata oluştu".to_string()))?;
 
-    let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = $1")
+    let user: Option<User> = sqlx::query_as("SELECT * FROM users WHERE username = ?1")
         .bind(&claims.username)
         .fetch_optional(&state.db)
         .await?;

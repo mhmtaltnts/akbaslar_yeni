@@ -5,7 +5,7 @@ use std::{
     time::Instant,
 };
 
-use sqlx::postgres::PgPool;
+use sqlx::SqlitePool;
 
 // Express'te her handler'ın `req`/`res` dışında env secret'lara vs. erişmesi
 // kolaydı çünkü hepsi modül seviyesinde `process.env` ile her yerden okunabilir.
@@ -19,8 +19,8 @@ use sqlx::postgres::PgPool;
 pub struct AppState {
     pub access_token_secret: String,
     pub refresh_token_secret: String,
-    // PgPool kendi içinde zaten Arc ile paylaşımlı; .clone() ucuz.
-    pub db: PgPool,
+    // SqlitePool kendi içinde zaten Arc ile paylaşımlı; .clone() ucuz.
+    pub db: SqlitePool,
     // middleware/loginLimiter.js'teki rate limit sayaçlarının karşılığı:
     // IP başına (deneme sayısı, pencerenin başladığı an). `express-rate-limit`
     // bunu kendi içinde bir Map ile tutuyordu; biz de aynısını elle yapıyoruz.

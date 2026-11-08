@@ -1,20 +1,53 @@
-use sqlx::postgres::{PgPool, PgPoolOptions};
+use std::{str::FromStr, time::Duration};
+
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
+    types::Json,
+    SqlitePool,
+};
+
+use crate::{models::username_key, roles};
 
 // Node tarafındaki `connectDB()` (config/dbConn.js) karşılığı.
-// `PgPool`, Mongoose'un tek bağlantısı yerine bir BAĞLANTI HAVUZU tutar:
-// her sorgu havuzdan bir bağlantı ödünç alır, işi bitince geri bırakır.
-pub async fn connect(database_url: &str) -> PgPool {
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect(database_url)
-        .await
-        .expect("Postgres'e bağlanılamadı");
+//
+// SQLite ayrı bir sunucu değil, programın İÇİNDE çalışan bir kütüphane:
+// veritabanı tek bir dosya (`DATABASE_URL=sqlite://data/akbaslar.db`).
+// Yine de bir bağlantı HAVUZU kullanıyoruz: aynı anda birden çok okuma
+// yapılabiliyor, yazmalar ise SQLite'ta sırayla (tek yazıcı) yapılır.
+pub async fn connect(database_url: &str) -> SqlitePool {
+    let options = SqliteConnectOptions::from_str(database_url)
+        .expect("DATABASE_URL geçerli bir sqlite adresi olmalı")
+        // Dosya (ve ilk açılışta şema) yoksa oluştur.
+        .create_if_missing(true)
+        // WAL: okuyucular yazıcıyı beklemez, yazıcı okuyucuları bekletmez.
+        // Web sunucusu gibi eşzamanlı erişimde SQLite için önerilen mod.
+        .journal_mode(SqliteJournalMode::Wal)
+        // WAL ile NORMAL güvenli ve FULL'dan çok daha hızlı.
+        .synchronous(SqliteSynchronous::Normal)
+        // Başka bir bağlantı yazarken "database is locked" hatası vermek
+        // yerine en fazla 5 sn bekle.
+        .busy_timeout(Duration::from_secs(5))
+        // SQLite'ta yabancı anahtar kontrolü varsayılan olarak KAPALI;
+        // ON DELETE CASCADE'in çalışması için açıyoruz.
+        .foreign_keys(true);
 
-    // `sqlx::migrate!` derleme zamanında `../migrations` klasöründeki .sql
-    // dosyalarını programın içine GÖMER (Node'daki gibi runtime'da diskten
-    // ayrıca bir migration aracı çalıştırmamıza gerek yok). `.run(&pool)`
-    // ise açılışta "bu migration'lardan hangileri daha önce uygulanmadı"
-    // diye bakıp sırayla çalıştırır.
+    // Dosyanın bulunduğu klasör yoksa SQLite dosyayı oluşturamaz.
+    if let Some(dir) = options.get_filename().parent() {
+        if !dir.as_os_str().is_empty() {
+            std::fs::create_dir_all(dir).expect("veritabanı klasörü oluşturulamadı");
+        }
+    }
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(5)
+        .connect_with(options)
+        .await
+        .expect("SQLite veritabanı açılamadı");
+
+    // `sqlx::migrate!` derleme zamanında `./migrations` klasöründeki .sql
+    // dosyalarını programın içine GÖMER. `.run(&pool)` ise açılışta "bu
+    // migration'lardan hangileri daha önce uygulanmadı" diye bakıp sırayla
+    // çalıştırır.
     sqlx::migrate!("./migrations")
         .run(&pool)
         .await
@@ -27,10 +60,10 @@ pub async fn connect(database_url: &str) -> PgPool {
 // yoksa, ilk otoparkta "Kurucu" + "SüperAdmin" rolleriyle oluşturur. Kullanıcı
 // zaten varsa HİÇBİR ŞEY yapmaz (şifresini/rollerini ezmez) -- böylece env
 // değişkenini kalıcı olarak bırakmak güvenli.
-pub async fn ensure_super_admin(pool: &PgPool, username: &str, password: &str) {
+pub async fn ensure_super_admin(pool: &SqlitePool, username: &str, password: &str) {
     let exists: Option<uuid::Uuid> =
-        sqlx::query_scalar("SELECT id FROM users WHERE lower(username) = lower($1)")
-            .bind(username)
+        sqlx::query_scalar("SELECT id FROM users WHERE username_key = ?1")
+            .bind(username_key(username))
             .fetch_optional(pool)
             .await
             .expect("SüperAdmin kontrolü yapılamadı");
@@ -40,12 +73,14 @@ pub async fn ensure_super_admin(pool: &PgPool, username: &str, password: &str) {
 
     let hashed = bcrypt::hash(password, bcrypt::DEFAULT_COST).expect("şifre hashlenemedi");
     sqlx::query(
-        "INSERT INTO users (fullname, username, password, roles, tenant_id)
-         VALUES ($1, $1, $2, ARRAY['Kurucu', 'SüperAdmin'],
-                 (SELECT id FROM tenants ORDER BY created_at LIMIT 1))",
+        "INSERT INTO users (id, fullname, username, username_key, password, roles, tenant_id)
+         VALUES (?1, ?2, ?2, ?3, ?4, ?5, (SELECT id FROM tenants ORDER BY created_at LIMIT 1))",
     )
+    .bind(uuid::Uuid::new_v4())
     .bind(username)
+    .bind(username_key(username))
     .bind(&hashed)
+    .bind(Json(vec![roles::ADMIN, roles::SUPER_ADMIN]))
     .execute(pool)
     .await
     .expect("SüperAdmin oluşturulamadı");

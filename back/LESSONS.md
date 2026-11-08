@@ -8,6 +8,7 @@ Stack kararları:
 - Web framework: **Axum**
 - Async runtime: **Tokio**
 - Veritabanı: **Postgres** + **sqlx** (Mongo'dan geçiş, şema aşağıda tasarlanacak)
+  → Sonradan **SQLite**'a geçildi (bkz. Ders 15).
 - Auth: **jsonwebtoken** + **bcrypt** (Node tarafındakiyle birebir eşdeğer)
 
 ## Ders Listesi
@@ -498,3 +499,27 @@ Stack kararları:
   alanından değil, `AuthUser.username`'den (imzalı token) yazılıyor. Eskiden
   token'da `username` olmadığı için frontend `user: undefined` gönderiyor ve bu
   istekler reddediliyordu.
+
+## Ders 15: Postgres → SQLite
+
+Neden: ayrı bir veritabanı sunucusu (Docker konteyneri, ~70 MB RAM) yerine
+programın içinde çalışan tek dosyalık bir veritabanı. Bir otoparkın yükü
+SQLite için çok hafif; kurulum ve yedekleme (`data/akbaslar.db` dosyasını
+kopyalamak) çok daha basit.
+
+- `sqlx` feature'ı `postgres` → `sqlite`. `PgPool` → `SqlitePool`; havuz
+  açılırken WAL modu, `busy_timeout` ve `foreign_keys` açılıyor (SQLite'ta
+  yabancı anahtar kontrolü varsayılan olarak KAPALI).
+- Migration'lar tek bir `0001_init.sql`'de yeniden yazıldı (`STRICT` tablolar).
+- `UUID` tipi yok → 16 baytlık BLOB, id'ler Rust'ta `Uuid::new_v4()`.
+- Dizi tipi yok → `roles` JSON metni; struct'ta `#[sqlx(json)]`, bind ederken
+  `Json(&roles)`. `= ANY(roles)` yerine `json_each(roles)`.
+- Dizi parametresi yok → `tenant_id = ANY($1)` yerine `QueryBuilder` ile
+  `IN (?, ?, ...)` ya da Rust'ta kontrol.
+- Parametreler `$1` yerine `?1`.
+- `lower()` sadece ASCII → büyük/küçük harf duyarsız kullanıcı adı için
+  `username_key` sütunu (Rust'ta hesaplanıyor, Türkçe I/İ/ı/i aynı sayılıyor).
+- `query_as!` (Ders 14) runtime `query_as`'e döndü: JSON sütunu ve derleme
+  için şeması kurulmuş veritabanı dosyası gereksinimi yüzünden.
+- Eski Postgres verisi: `python3 scripts/pg_to_sqlite.py`.
+

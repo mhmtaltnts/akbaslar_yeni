@@ -4,4 +4,4 @@ mod user;
 
 pub use note::{Note, PublicNote};
 pub use tenant::Tenant;
-pub use user::User;
+pub use user::{username_key, User};
