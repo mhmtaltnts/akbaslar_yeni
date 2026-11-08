@@ -10,4 +10,8 @@ pub fn tenant_routes() -> Router<SharedState> {
             .post(handlers::create_tenant)
             .patch(handlers::update_tenant),
     )
+    .route(
+        "/officers",
+        get(handlers::get_officers).put(handlers::set_officer_parks),
+    )
 }

@@ -21,11 +21,17 @@ pub async fn get_all_notes(
     // `sort([['_id', -1]])` Mongo'da "en yeni üstte" demekti çünkü ObjectId
     // zaman sıralı. UUID rastgele olduğu için Ders 10'da eklediğimiz
     // `created_at` sütununa göre sıralıyoruz (bkz. migration 0002).
+    //
+    // Gümrük memuru birden çok otoparka erişebildiği için listede her aracın
+    // hangi parkta olduğu da (`park_name`) gönderiliyor.
+    let park_ids = user.park_ids(&state.db).await?;
     let notes: Vec<Note> = sqlx::query_as(
-        "SELECT * FROM notes WHERE tenant_id = $1 AND cikis_tarihi IS NULL
-         ORDER BY created_at DESC",
+        "SELECT n.*, t.name AS park_name FROM notes n
+         JOIN tenants t ON t.id = n.tenant_id
+         WHERE n.tenant_id = ANY($1) AND n.cikis_tarihi IS NULL
+         ORDER BY n.created_at DESC",
     )
-    .bind(user.tenant_id)
+    .bind(&park_ids)
     .fetch_all(&state.db)
     .await?;
 
@@ -54,6 +60,8 @@ pub async fn create_note(
     State(state): State<SharedState>,
     Json(payload): Json<CreateNotePayload>,
 ) -> Result<impl IntoResponse, AppError> {
+    user.require_not_officer()?;
+
     // Node tarafındaki alan doğrulama bloğu YORUM SATIRIYDI (devre dışı) --
     // orijinalde de boş/eksik alanlarla devam ediliyordu, biz de aynı
     // şekilde burada ek bir kontrol eklemiyoruz.
@@ -115,15 +123,23 @@ pub async fn update_note(
     State(state): State<SharedState>,
     Json(payload): Json<UpdateNotePayload>,
 ) -> Result<Json<MessageBody>, AppError> {
-    let exists: Option<(Uuid,)> =
-        sqlx::query_as("SELECT id FROM notes WHERE id = $1 AND tenant_id = $2")
+    user.require_not_officer()?;
+
+    let giris_yapan: Option<Option<String>> =
+        sqlx::query_scalar("SELECT giris_yapan FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)
         .bind(user.tenant_id)
         .fetch_optional(&state.db)
         .await?;
 
-    if exists.is_none() {
-        return Err(AppError::BadRequest("Araç kaydı bulunamadı".to_string()));
+    let giris_yapan =
+        giris_yapan.ok_or_else(|| AppError::BadRequest("Araç kaydı bulunamadı".to_string()))?;
+
+    // Çalışan sadece kendi girdiği kaydı düzenleyebilir; Kurucu/Yönetici hepsini.
+    if !user.is_manager() && giris_yapan.as_deref() != Some(user.username.as_str()) {
+        return Err(AppError::Unauthorized(
+            "Bu kaydı sadece giriş yapan kullanıcı veya yöneticiler düzenleyebilir".to_string(),
+        ));
     }
 
     sqlx::query(
@@ -158,6 +174,8 @@ pub async fn delete_note(
     State(state): State<SharedState>,
     Json(payload): Json<DeleteNotePayload>,
 ) -> Result<Json<ReplyBody>, AppError> {
+    user.require_manager()?;
+
     let note: Option<Note> =
         sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)

@@ -1,5 +1,5 @@
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
@@ -185,6 +185,120 @@ pub async fn update_tenant(
     }
 
     Ok(Json(MessageBody::new(format!("{} güncellendi", payload.name.trim()))))
+}
+
+#[derive(sqlx::FromRow)]
+struct OfficerRow {
+    id: Uuid,
+    fullname: String,
+    username: String,
+    roles: Vec<String>,
+    tenant_id: Uuid,
+    tenant_name: String,
+    park_ids: Vec<Uuid>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Officer {
+    #[serde(rename = "_id")]
+    id: Uuid,
+    fullname: String,
+    username: String,
+    // Memurun kayıtlı olduğu otopark: buna her zaman erişir.
+    home_park_id: Uuid,
+    home_park_name: String,
+    // SüperAdmin'in ayrıca izin verdiği otoparklar.
+    park_ids: Vec<Uuid>,
+}
+
+// @route GET /tenants/officers  (SüperAdmin)
+// Tüm otoparklardaki gümrük memurları ve izinli oldukları otoparklar.
+pub async fn get_officers(
+    user: AuthUser,
+    State(state): State<SharedState>,
+) -> Result<Json<Vec<Officer>>, AppError> {
+    user.require_super_admin()?;
+
+    let rows: Vec<OfficerRow> = sqlx::query_as(
+        "SELECT u.id, u.fullname, u.username, u.roles, u.tenant_id, t.name AS tenant_name,
+                COALESCE(array_agg(op.tenant_id) FILTER (WHERE op.tenant_id IS NOT NULL), '{}')
+                    AS park_ids
+         FROM users u
+         JOIN tenants t ON t.id = u.tenant_id
+         LEFT JOIN officer_parks op ON op.user_id = u.id
+         WHERE $1 = ANY (u.roles)
+         GROUP BY u.id, t.name
+         ORDER BY u.username",
+    )
+    .bind(roles::OFFICER)
+    .fetch_all(&state.db)
+    .await?;
+
+    // Memur rolüyle birlikte Kurucu/Yönetici olanlar zaten kısıtsız; onları
+    // listelemiyoruz (bkz. `roles::is_officer`).
+    let officers = rows
+        .into_iter()
+        .filter(|r| roles::is_officer(&r.roles))
+        .map(|r| Officer {
+            id: r.id,
+            fullname: r.fullname,
+            username: r.username,
+            home_park_id: r.tenant_id,
+            home_park_name: r.tenant_name,
+            park_ids: r.park_ids,
+        })
+        .collect();
+
+    Ok(Json(officers))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OfficerParksPayload {
+    pub user_id: Uuid,
+    pub park_ids: Vec<Uuid>,
+}
+
+// @route PUT /tenants/officers  (SüperAdmin)
+// Memurun ek otopark izinlerini verilen listeyle DEĞİŞTİRİR.
+pub async fn set_officer_parks(
+    user: AuthUser,
+    State(state): State<SharedState>,
+    Json(payload): Json<OfficerParksPayload>,
+) -> Result<Json<MessageBody>, AppError> {
+    user.require_super_admin()?;
+
+    let target: Option<(String, Vec<String>, Uuid)> =
+        sqlx::query_as("SELECT username, roles, tenant_id FROM users WHERE id = $1")
+            .bind(payload.user_id)
+            .fetch_optional(&state.db)
+            .await?;
+    let (username, target_roles, home_park) =
+        target.ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?;
+    if !roles::is_officer(&target_roles) {
+        return Err(AppError::BadRequest("Kullanıcı gümrük memuru değil".to_string()));
+    }
+
+    let mut tx = state.db.begin().await?;
+    sqlx::query("DELETE FROM officer_parks WHERE user_id = $1")
+        .bind(payload.user_id)
+        .execute(&mut *tx)
+        .await?;
+    // `FROM tenants` üzerinden ekleyerek var olmayan otopark id'lerini
+    // sessizce eliyoruz; memurun kendi otoparkı zaten her zaman açık.
+    sqlx::query(
+        "INSERT INTO officer_parks (user_id, tenant_id)
+         SELECT $1, id FROM tenants WHERE id = ANY($2) AND id <> $3",
+    )
+    .bind(payload.user_id)
+    .bind(&payload.park_ids)
+    .bind(home_park)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+
+    Ok(Json(MessageBody::new(format!("{username} için otopark izinleri güncellendi"))))
 }
 
 #[cfg(test)]

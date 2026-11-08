@@ -1,5 +1,6 @@
 use axum::{extract::FromRequestParts, http::request::Parts};
 use serde::Serialize;
+use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::{error::AppError, jwt, roles, state::SharedState};
@@ -43,6 +44,70 @@ impl AuthUser {
         } else {
             Err(AppError::Unauthorized("Bu işlem için yetkiniz yok".to_string()))
         }
+    }
+
+    // Otoparkın kurucusu (veya platform yöneticisi). Kullanıcı yönetimi
+    // sadece onlara açık: aksi halde herhangi bir çalışan API'yi doğrudan
+    // çağırıp kendine Kurucu rolü verebilir, kullanıcı silebilirdi.
+    pub fn require_admin(&self) -> Result<(), AppError> {
+        if self.is_super_admin() || self.roles.iter().any(|r| r == roles::ADMIN) {
+            Ok(())
+        } else {
+            Err(AppError::Unauthorized("Bu işlem için yetkiniz yok".to_string()))
+        }
+    }
+
+    // Kurucu, Yönetici veya SüperAdmin: rapor, kayıt silme ve başkasının
+    // girdiği kaydı düzenleme sadece onlara açık (arayüzdeki
+    // `isAdmin || isManager` kontrolünün backend karşılığı).
+    pub fn is_manager(&self) -> bool {
+        self.is_super_admin()
+            || self.roles.iter().any(|r| r == roles::ADMIN || r == roles::MANAGER)
+    }
+
+    pub fn require_manager(&self) -> Result<(), AppError> {
+        if self.is_manager() {
+            Ok(())
+        } else {
+            Err(AppError::Unauthorized("Bu işlem için yetkiniz yok".to_string()))
+        }
+    }
+
+    pub fn is_officer(&self) -> bool {
+        roles::is_officer(&self.roles)
+    }
+
+    // Gümrük memuru sadece araç listesini görür ve gümrük bilgisi girer:
+    // araç giriş/çıkış/düzenleme, rapor ve kullanıcı yönetimi kapalı.
+    // (401 dönüyoruz, 403 değil: istemci 403'ü "token süresi doldu" sayıp
+    // boşuna refresh deniyor.)
+    pub fn require_not_officer(&self) -> Result<(), AppError> {
+        if self.is_officer() {
+            Err(AppError::Unauthorized("Bu işlem için yetkiniz yok".to_string()))
+        } else {
+            Ok(())
+        }
+    }
+
+    // Kullanıcının araç kayıtlarını görebildiği otoparklar. Personel için
+    // sadece kendi otoparkı; memur için ayrıca SüperAdmin'in izin verdiği
+    // (ve askıda olmayan) otoparklar. İzinler token'a değil DB'ye bakılarak
+    // okunuyor, böylece SüperAdmin'in değişikliği anında geçerli oluyor.
+    pub async fn park_ids(&self, db: &PgPool) -> Result<Vec<Uuid>, AppError> {
+        let mut ids = vec![self.tenant_id];
+        if self.is_officer() {
+            let extra: Vec<Uuid> = sqlx::query_scalar(
+                "SELECT op.tenant_id FROM officer_parks op
+                 JOIN tenants t ON t.id = op.tenant_id
+                 WHERE op.user_id = $1 AND t.active AND op.tenant_id <> $2",
+            )
+            .bind(self.id)
+            .bind(self.tenant_id)
+            .fetch_all(db)
+            .await?;
+            ids.extend(extra);
+        }
+        Ok(ids)
     }
 }
 

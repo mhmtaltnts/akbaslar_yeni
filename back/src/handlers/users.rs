@@ -33,6 +33,8 @@ pub async fn get_all_users(
     user: AuthUser,
     State(state): State<SharedState>,
 ) -> Result<Json<Vec<User>>, AppError> {
+    user.require_admin()?;
+
     // Ders 14: `query_as` (runtime) yerine `query_as!` (derleme zamanı
     // kontrollü). Fark: bu makro, DERLEME ANINDA `DATABASE_URL`'deki
     // gerçek Postgres'e bağlanıp "users" tablosunun sütunlarını/tiplerini
@@ -73,6 +75,8 @@ pub async fn create_user(
     State(state): State<SharedState>,
     Json(payload): Json<CreateUserPayload>,
 ) -> Result<impl IntoResponse, AppError> {
+    user.require_admin()?;
+
     if payload.username.is_empty() || payload.password.is_empty() {
         return Err(AppError::BadRequest("Tüm alanlar doldurulmalı".to_string()));
     }
@@ -144,6 +148,8 @@ pub async fn update_user(
     State(state): State<SharedState>,
     Json(payload): Json<UpdateUserPayload>,
 ) -> Result<Json<MessageBody>, AppError> {
+    user.require_admin()?;
+
     if payload.username.is_empty() || payload.roles.is_empty() {
         return Err(AppError::BadRequest(
             "Şifre hariç diğer bütün alanlar doldurulmalı".to_string(),
@@ -231,6 +237,8 @@ pub async fn delete_user(
     State(state): State<SharedState>,
     Json(payload): Json<DeleteUserPayload>,
 ) -> Result<Json<ReplyBody>, AppError> {
+    user.require_admin()?;
+
     let target: Option<User> =
         sqlx::query_as("SELECT * FROM users WHERE id = $1 AND tenant_id = $2")
             .bind(payload.id)

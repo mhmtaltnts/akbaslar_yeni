@@ -29,6 +29,12 @@ pub struct Note {
     pub gumruk_bilgi_tarihi: Option<i64>,
     pub cikis_tarihi: Option<i64>,
     pub guncelleme_tarihi: Option<i64>,
+    // Sadece `GET /notes` doldurur (tenants ile JOIN): gümrük memuru birden
+    // çok otoparkın araçlarını tek listede görüyor. `SELECT *` yapan diğer
+    // sorgularda bu sütun yok; `sqlx(default)` sayesinde None kalır.
+    #[sqlx(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub park_name: Option<String>,
 }
 
 // Herkese açık "Misafir Araçlar" sayfası için sadeleştirilmiş görünüm:

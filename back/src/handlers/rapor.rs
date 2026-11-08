@@ -38,6 +38,8 @@ pub async fn rapor(
     State(state): State<SharedState>,
     Query(params): Query<RaporQuery>,
 ) -> Result<Json<RaporResponse>, AppError> {
+    user.require_manager()?;
+
     let page = params.page.unwrap_or(1).max(1);
     let skip = (page - 1) * NOTES_PER_PAGE;
 
@@ -98,6 +100,8 @@ pub async fn update_rapor(
     State(state): State<SharedState>,
     Json(payload): Json<UpdateRaporPayload>,
 ) -> Result<Json<MessageBody>, AppError> {
+    user.require_manager()?;
+
     let exists: Option<(Uuid,)> =
         sqlx::query_as("SELECT id FROM notes WHERE id = $1 AND tenant_id = $2")
         .bind(payload.id)

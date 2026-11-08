@@ -22,23 +22,26 @@ pub async fn gumruk_note(
         return Err(AppError::BadRequest("Tüm alanları doldurun".to_string()));
     }
 
+    // Memur, izinli olduğu herhangi bir otoparktaki araca gümrük bilgisi
+    // girebilir; diğer kullanıcılar için bu sadece kendi otoparkları.
+    let park_ids = user.park_ids(&state.db).await?;
     let note: Option<Note> =
-        sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = $2")
+        sqlx::query_as("SELECT * FROM notes WHERE id = $1 AND tenant_id = ANY($2)")
         .bind(payload.id)
-        .bind(user.tenant_id)
+        .bind(&park_ids)
         .fetch_optional(&state.db)
         .await?;
 
     let note = note.ok_or_else(|| AppError::BadRequest("Araç Bulunamadı".to_string()))?;
 
     sqlx::query(
-        "UPDATE notes SET gumruk_yapan = $1, gumruk_bilgi = $2, gumruk_bilgi_tarihi = $3 WHERE id = $4 AND tenant_id = $5",
+        "UPDATE notes SET gumruk_yapan = $1, gumruk_bilgi = $2, gumruk_bilgi_tarihi = $3 WHERE id = $4 AND tenant_id = ANY($5)",
     )
     .bind(&user.username)
     .bind(&payload.gumruk_bilgi)
     .bind(payload.gumruk_bilgi_tarihi)
     .bind(payload.id)
-    .bind(user.tenant_id)
+    .bind(&park_ids)
     .execute(&state.db)
     .await?;
 

@@ -23,6 +23,8 @@ pub async fn cikis_note(
     State(state): State<SharedState>,
     Json(payload): Json<CikisPayload>,
 ) -> Result<Json<MessageBody>, AppError> {
+    user.require_not_officer()?;
+
     if payload.goturen.is_empty() {
         return Err(AppError::BadRequest("Tüm alanları doldurun".to_string()));
     }
