@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AlertCircle, Inbox, Loader2, Search } from "lucide-react";
+import { AlertCircle, Inbox, Loader2, Search, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 
@@ -190,13 +190,8 @@ export function StatCard({
 export function Brand({ name, className }: { name?: ReactNode; className?: string }) {
   return (
     <span className={cn("flex items-center gap-2.5 font-semibold", className)}>
-      <span className="bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-lg shadow-sm">
-        <svg viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M3 17V6a1 1 0 0 1 1-1h10v12" />
-          <path d="M14 9h4l3 4v4h-2" />
-          <circle cx="7" cy="17.5" r="1.8" />
-          <circle cx="17" cy="17.5" r="1.8" />
-        </svg>
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#4f7cff] to-[#1d3fc4] text-white shadow-sm">
+        <Truck className="size-[18px]" strokeWidth={2.25} aria-hidden="true" />
       </span>
       <span className="truncate">{name}</span>
     </span>
