@@ -1,2 +1,4 @@
-back/node_modules
 front/node_modules
+back/target
+back/.env
+back/logs/
