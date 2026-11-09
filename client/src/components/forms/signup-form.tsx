@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -18,6 +19,7 @@ import { Input } from "@/components/ui/input";
 
 import { cn } from "@/lib/utils";
 import { useSignup } from "@/api/auth";
+import { useSiteBrand } from "@/utils/hooks/useSite";
 
 // Form şeması düzeltmesi
 const formSchema = z.object({
@@ -42,6 +44,10 @@ export function SignupForm({
   const signup = useSignup();
   const isLoading = signup.isPending;
   const navigate = useNavigate();
+  // Site bir otoparkın alan adından açıldıysa (örn. akbaslartirparki.com)
+  // otopark kodu oradan gelir; kullanıcı isterse değiştirebilir.
+  const { site } = useSiteBrand();
+  const [editPark, setEditPark] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -52,6 +58,10 @@ export function SignupForm({
       park: "",
     },
   });
+
+  useEffect(() => {
+    if (site && !form.getValues("park")) form.setValue("park", site.slug);
+  }, [site, form]);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -121,11 +131,32 @@ export function SignupForm({
 
       <Form {...form}>
         <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-          {field("park", "Otopark kodu", {
-            placeholder: "ör. muallimkoy",
-            className: "font-mono",
-            hint: "Kodu otopark yöneticinizden alabilirsiniz.",
-          })}
+          {site && !editPark ? (
+            <div className="bg-muted/40 flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-xs">Kayıt olunacak otopark</p>
+                <p className="truncate text-sm font-medium">{site.name}</p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isLoading}
+                onClick={() => {
+                  form.setValue("park", "");
+                  setEditPark(true);
+                }}
+              >
+                Değiştir
+              </Button>
+            </div>
+          ) : (
+            field("park", "Otopark kodu", {
+              placeholder: "ör. muallimkoy",
+              className: "font-mono",
+              hint: "Kodu otopark yöneticinizden alabilirsiniz.",
+            })
+          )}
           {field("fullname", "Ad soyad", { placeholder: "Ahmet Yılmaz" })}
           {field("username", "Kullanıcı adı", { placeholder: "ahmet.yilmaz" })}
           {field("password", "Şifre", { type: "password" })}
