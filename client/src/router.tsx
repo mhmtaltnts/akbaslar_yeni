@@ -9,7 +9,11 @@ const router = createRouter({
   routeTree,
   // Route loader'ları veriyi bu QueryClient ile önceden yükler.
   context: { queryClient },
-  defaultPreload: "intent",
+  // Bağlantının üzerine gelince önceden yükle: SADECE fareli cihazlarda.
+  // Dokunmatik ekranda (özellikle iOS Safari) parmak değer değmez başlayan
+  // ön yükleme, Safari'nin tıklamayı vermeden önce sayfadaki değişikliği
+  // beklemesine yol açıp düğme tepkisini geciktiriyordu.
+  defaultPreload: window.matchMedia("(hover: hover) and (pointer: fine)").matches ? "intent" : false,
   // Önbellekteki veriyi TanStack Query yönetir; router'ın kendi loader
   // önbelleği her zaman query'ye sorsun.
   defaultPreloadStaleTime: 0,

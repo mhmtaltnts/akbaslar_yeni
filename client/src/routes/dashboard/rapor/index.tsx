@@ -175,15 +175,17 @@ function RouteComponent() {
         actions={
           // Tarih aralığı Excel düğmesinin önünde: aktarılacak aralık seçilip
           // hemen yanındaki düğmeyle indirilir (tabloyu da filtreler).
-          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             {/* Çıkış tarihi aralığı (iki gün de dahil). */}
-            <div className="flex items-center gap-2">
+            {/* Dar ekranda tam satır, kutular esner: sabit genişlikli iki tarih
+                kutusu iPhone'da sayfayı yatay taşırıyordu. */}
+            <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
               <CalendarRange className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
               <Input
                 type="date"
                 aria-label="Başlangıç tarihi (çıkış)"
                 title="Başlangıç tarihi (çıkış)"
-                className="w-auto"
+                className="min-w-0 flex-1 sm:w-auto sm:flex-none"
                 value={from ?? ""}
                 max={to}
                 onChange={(e) => setFilter({ from: e.target.value || undefined })}
@@ -193,7 +195,7 @@ function RouteComponent() {
                 type="date"
                 aria-label="Bitiş tarihi (çıkış)"
                 title="Bitiş tarihi (çıkış)"
-                className="w-auto"
+                className="min-w-0 flex-1 sm:w-auto sm:flex-none"
                 value={to ?? ""}
                 min={from}
                 onChange={(e) => setFilter({ to: e.target.value || undefined })}

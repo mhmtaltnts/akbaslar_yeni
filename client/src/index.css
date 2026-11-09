@@ -135,6 +135,9 @@
   }
   html {
     color-scheme: light;
+    /* iOS Safari çift dokunmayla yakınlaştırmayı beklemeden tıklamayı hemen
+       versin (iki parmakla yakınlaştırma çalışmaya devam eder). */
+    touch-action: manipulation;
   }
   html.dark {
     color-scheme: dark;
