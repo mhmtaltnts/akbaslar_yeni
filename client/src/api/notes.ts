@@ -99,7 +99,13 @@ function useNoteMutation<V>(fn: (v: V) => Promise<Message>, patch: Patch<V>) {
         ...qc.getQueriesData({ queryKey: ["notes"] }),
         ...qc.getQueriesData({ queryKey: ["rapor"] }),
       ];
-      patch(qc, v);
+      // Yama sadece görüntü içindir: içinde bir hata olursa asıl istek yine
+      // gitsin (onMutate hata fırlatırsa mutationFn hiç çalışmaz).
+      try {
+        patch(qc, v);
+      } catch (e) {
+        console.error("Optimistik güncelleme uygulanamadı", e);
+      }
       return { snapshot };
     },
     onError: (err, v, ctx) => {
@@ -147,6 +153,11 @@ const mergeNote = (id: string, fields: Partial<Note>) => (n: Note) =>
 // işlem (çıkış, düzenleme...) yapılamaz; yenilemeyle gerçek kayıt gelir.
 export const TEMP_ID_PREFIX = "temp-";
 export const isPendingNote = (n: Pick<Note, "id">) => n.id.startsWith(TEMP_ID_PREFIX);
+// crypto.randomUUID KULLANMIYORUZ: tarayıcılar onu sadece HTTPS'te (güvenli
+// bağlamda) sunar; site HTTP'den açıldığında hata verip kaydı engelliyordu.
+// Geçici kimliğin sadece bu sekmede benzersiz olması yeterli.
+let tempSeq = 0;
+const tempId = () => `${TEMP_ID_PREFIX}${Date.now()}-${++tempSeq}`;
 
 export type NewNote = { getiren: string; dorse: string; firma?: string; mal?: string; girisTarihi: number };
 export const useAddNote = () => {
@@ -155,7 +166,7 @@ export const useAddNote = () => {
     (body: NewNote) => apiFetch<Message>("/notes", { method: "POST", body }),
     (qc, v) =>
       patchNotes(qc, (notes) => [
-        { ...v, id: `${TEMP_ID_PREFIX}${crypto.randomUUID()}`, girisYapan: username ?? null },
+        { ...v, id: tempId(), girisYapan: username ?? null },
         ...notes,
       ]),
   );
