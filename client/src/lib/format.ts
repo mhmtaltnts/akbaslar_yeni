@@ -1,27 +1,26 @@
 // Tarih/süre biçimlendirme yardımcıları (epoch ms alır; null/undefined güvenli).
 
+// Biçimlendiriciler bir kez kurulur: `toLocaleString(..., options)` her
+// çağrıda yeni bir Intl.DateTimeFormat oluşturur. Bu pahalıdır (özellikle iOS
+// Safari'de); listelerde satır başına çağrıldığı için sayfa açılışındaki en
+// pahalı tek işti. Çıktı aynıdır.
+const dateTimeFmt = new Intl.DateTimeFormat("tr-TR", { dateStyle: "short", timeStyle: "short" });
+const dateFmt = new Intl.DateTimeFormat("tr-TR", { day: "2-digit", month: "short" });
+const timeFmt = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit" });
+
 export function formatDateTime(ms?: number | null) {
   if (!ms) return "—";
-  return new Date(ms).toLocaleString("tr-TR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
+  return dateTimeFmt.format(ms);
 }
 
 export function formatDate(ms?: number | null) {
   if (!ms) return "—";
-  return new Date(ms).toLocaleDateString("tr-TR", {
-    day: "2-digit",
-    month: "short",
-  });
+  return dateFmt.format(ms);
 }
 
 export function formatTime(ms?: number | null) {
   if (!ms) return "";
-  return new Date(ms).toLocaleTimeString("tr-TR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return timeFmt.format(ms);
 }
 
 // Parkta kalınan gün: takvim günü olarak, giriş günü dahil (eski

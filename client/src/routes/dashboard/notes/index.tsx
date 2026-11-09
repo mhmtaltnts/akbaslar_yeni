@@ -41,7 +41,7 @@ import {
   PlusCircle,
   Truck,
 } from "lucide-react";
-import { useDeferredValue, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
 import useMediaQuery from "@/utils/hooks/useMediaQuery";
 import { useIncrementalList } from "@/utils/hooks/useIncrementalList";
 
@@ -63,11 +63,13 @@ function RouteComponent() {
   // duruyordu (191 araçta ~7 bin eleman).
   const isDesktop = useMediaQuery("(min-width: 768px)"); // Tailwind md
   // Yetkiler satır başına değil sayfada bir kez hesaplanır.
-  const perms: NotePerms = {
-    canCustoms: ability.can("update", "notes", "Gümrük"),
-    canExit: ability.can("update", "notes", "all"),
-    canManage: isAdmin || isManager,
-  };
+  const canCustoms = ability.can("update", "notes", "Gümrük");
+  const canExit = ability.can("update", "notes", "all");
+  const canManage = Boolean(isAdmin || isManager);
+  const perms = useMemo<NotePerms>(
+    () => ({ canCustoms, canExit, canManage }),
+    [canCustoms, canExit, canManage],
+  );
 
   const { data: notes = [], isLoading, isSuccess, isError, error } = useQuery({
     ...notesQuery,
@@ -149,92 +151,31 @@ function RouteComponent() {
         {isSuccess && filtered.length > 0 && (
           <>
             {isDesktop ? (
-              <div>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/40 hover:bg-muted/40">
-                      {isOfficer && <TableHead className="pl-4">Otopark</TableHead>}
-                      <TableHead className={isOfficer ? undefined : "pl-4"}>Dorse</TableHead>
-                      <TableHead>Çekici</TableHead>
-                      <TableHead>Firma / Yük</TableHead>
-                      <TableHead>Gümrük</TableHead>
-                      <TableHead>Giriş</TableHead>
-                      <TableHead className="hidden xl:table-cell">Giriş Yapan</TableHead>
-                      <TableHead className="pr-4 text-right">İşlemler</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visible.map((note) => (
-                      <TableRow key={note.id} className={isPendingNote(note) ? "opacity-60" : undefined}>
-                        {isOfficer && (
-                          <TableCell className="max-w-44 pl-4">
-                            <span className="block truncate font-medium">{note.parkName}</span>
-                          </TableCell>
-                      )}
-                      <TableCell className={isOfficer ? "max-w-44" : "max-w-44 pl-4"}>
-                        <Plate value={note.dorse} truncate />
-                      </TableCell>
-                      <TableCell className="max-w-48">
-                        <Plate value={note.getiren} truncate />
-                      </TableCell>
-                      <TableCell className="max-w-56">
-                        <p className="truncate font-medium">{note.firma || "—"}</p>
-                        <p className="text-muted-foreground truncate text-xs">{note.mal}</p>
-                      </TableCell>
-                      <TableCell className="max-w-48">
-                        <CustomsBadge info={note.gumrukBilgi} />
-                      </TableCell>
-                      <TableCell>
-                        <p className="whitespace-nowrap">{formatDateTime(note.girisTarihi)}</p>
-                        <p className="text-muted-foreground text-xs">{stayLabel(note.girisTarihi)}</p>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground hidden xl:table-cell">
-                        {note.girisYapan}
-                      </TableCell>
-                      <TableCell className="pr-4">
-                        <NoteActions noteId={note.id} pending={isPendingNote(note)} perms={perms} />
-                      </TableCell>
-                    </TableRow>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    {isOfficer && <TableHead className="pl-4">Otopark</TableHead>}
+                    <TableHead className={isOfficer ? undefined : "pl-4"}>Dorse</TableHead>
+                    <TableHead>Çekici</TableHead>
+                    <TableHead>Firma / Yük</TableHead>
+                    <TableHead>Gümrük</TableHead>
+                    <TableHead>Giriş</TableHead>
+                    <TableHead className="hidden xl:table-cell">Giriş Yapan</TableHead>
+                    <TableHead className="pr-4 text-right">İşlemler</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visible.map((note) => (
+                    <NoteTableRow key={note.id} note={note} isOfficer={isOfficer} perms={perms} />
                   ))}
                 </TableBody>
               </Table>
-            </div>
-
             ) : (
-            <ul className="divide-y">
-              {visible.map((note) => (
-                <li key={note.id} className={`space-y-3 p-4 ${isPendingNote(note) ? "opacity-60" : ""}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-1.5">
-                      {isOfficer && note.parkName && (
-                        <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
-                          <Building2 className="size-3.5" /> {note.parkName}
-                        </p>
-                      )}
-                      <Plate value={note.dorse} truncate />
-                      <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
-                        <Truck className="size-3.5 shrink-0" /> <Plate value={note.getiren} size="sm" truncate />
-                      </div>
-                    </div>
-                    <NoteActions noteId={note.id} pending={isPendingNote(note)} perms={perms} />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                    <span className="font-medium">{note.firma || "Firma yok"}</span>
-                    {note.mal && <span className="text-muted-foreground">· {note.mal}</span>}
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <CustomsBadge info={note.gumrukBilgi} />
-                    </div>
-                    <span className="text-muted-foreground shrink-0 text-xs">
-                      {[formatDateTime(note.girisTarihi), stayLabel(note.girisTarihi)]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
+              <ul className="divide-y">
+                {visible.map((note) => (
+                  <NoteCard key={note.id} note={note} isOfficer={isOfficer} perms={perms} />
+                ))}
+              </ul>
             )}
             {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden />}
           </>
@@ -243,6 +184,77 @@ function RouteComponent() {
     </>
   );
 }
+
+// Satırlar memo'lu: liste 15 sn'de bir arkada yenilenince TanStack Query
+// değişmeyen kayıtların nesnelerini aynen korur (structural sharing), bu
+// satırlar yeniden çizilmez. `perms` de sayfada useMemo ile sabit tutulur.
+type RowProps = { note: Note; isOfficer: boolean; perms: NotePerms };
+
+const NoteTableRow = memo(function NoteTableRow({ note, isOfficer, perms }: RowProps) {
+  return (
+    <TableRow className={isPendingNote(note) ? "opacity-60" : undefined}>
+      {isOfficer && (
+        <TableCell className="max-w-44 pl-4">
+          <span className="block truncate font-medium">{note.parkName}</span>
+        </TableCell>
+      )}
+      <TableCell className={isOfficer ? "max-w-44" : "max-w-44 pl-4"}>
+        <Plate value={note.dorse} truncate />
+      </TableCell>
+      <TableCell className="max-w-48">
+        <Plate value={note.getiren} truncate />
+      </TableCell>
+      <TableCell className="max-w-56">
+        <p className="truncate font-medium">{note.firma || "—"}</p>
+        <p className="text-muted-foreground truncate text-xs">{note.mal}</p>
+      </TableCell>
+      <TableCell className="max-w-48">
+        <CustomsBadge info={note.gumrukBilgi} />
+      </TableCell>
+      <TableCell>
+        <p className="whitespace-nowrap">{formatDateTime(note.girisTarihi)}</p>
+        <p className="text-muted-foreground text-xs">{stayLabel(note.girisTarihi)}</p>
+      </TableCell>
+      <TableCell className="text-muted-foreground hidden xl:table-cell">{note.girisYapan}</TableCell>
+      <TableCell className="pr-4">
+        <NoteActions noteId={note.id} pending={isPendingNote(note)} perms={perms} />
+      </TableCell>
+    </TableRow>
+  );
+});
+
+const NoteCard = memo(function NoteCard({ note, isOfficer, perms }: RowProps) {
+  return (
+    <li className={`space-y-3 p-4 ${isPendingNote(note) ? "opacity-60" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1.5">
+          {isOfficer && note.parkName && (
+            <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+              <Building2 className="size-3.5" /> {note.parkName}
+            </p>
+          )}
+          <Plate value={note.dorse} truncate />
+          <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+            <Truck className="size-3.5 shrink-0" /> <Plate value={note.getiren} size="sm" truncate />
+          </div>
+        </div>
+        <NoteActions noteId={note.id} pending={isPendingNote(note)} perms={perms} />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <span className="font-medium">{note.firma || "Firma yok"}</span>
+        {note.mal && <span className="text-muted-foreground">· {note.mal}</span>}
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <CustomsBadge info={note.gumrukBilgi} />
+        </div>
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {[formatDateTime(note.girisTarihi), stayLabel(note.girisTarihi)].filter(Boolean).join(" · ")}
+        </span>
+      </div>
+    </li>
+  );
+});
 
 function CustomsBadge({ info }: { info?: string | null }) {
   if (!info)
