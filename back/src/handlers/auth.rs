@@ -114,6 +114,13 @@ pub struct LoginPayload {
     pub password: String,
 }
 
+// `SameSite=None` (siteler arası istek, ayrı alan adındaki API) tarayıcılarda
+// SADECE `Secure` ile geçerli. Secure kapalıysa (HTTP deneme kurulumu, site ve
+// API aynı adreste) `Lax` kullanıyoruz.
+fn same_site(state: &SharedState) -> SameSite {
+    if state.cookie_secure { SameSite::None } else { SameSite::Lax }
+}
+
 // @route POST /auth/login
 pub async fn login(
     State(state): State<SharedState>,
@@ -156,8 +163,8 @@ pub async fn login(
     // maxAge: 7*24*60*60*1000 })` karşılığı.
     let cookie = Cookie::build(("jwt", refresh_token))
         .http_only(true)
-        .secure(true)
-        .same_site(SameSite::None)
+        .secure(state.cookie_secure)
+        .same_site(same_site(&state))
         .max_age(time::Duration::days(7))
         .path("/")
         .build();
@@ -204,7 +211,7 @@ pub async fn refresh(
 
 // @route POST /auth/logout
 // Node'daki gibi bu handler'ın bir hata yolu yok -- dönüş tipi düz `Response`.
-pub async fn logout(jar: CookieJar) -> Response {
+pub async fn logout(State(state): State<SharedState>, jar: CookieJar) -> Response {
     if jar.get("jwt").is_none() {
         return (StatusCode::NO_CONTENT, jar).into_response();
     }
@@ -219,8 +226,8 @@ pub async fn logout(jar: CookieJar) -> Response {
         Cookie::build("jwt")
             .path("/")
             .http_only(true)
-            .secure(true)
-            .same_site(SameSite::None),
+            .secure(state.cookie_secure)
+            .same_site(same_site(&state)),
     );
 
     (jar, Json(MessageBody::new("Cookie cleared"))).into_response()

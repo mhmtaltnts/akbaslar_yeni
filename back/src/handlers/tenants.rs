@@ -164,7 +164,7 @@ pub async fn update_tenant(
     }
 
     // SüperAdmin'in kendi otoparkını askıya alması kendini sistemden kilitler.
-    if !payload.active && payload.id == user.tenant_id {
+    if !payload.active && payload.id == user.home_tenant_id {
         return Err(AppError::BadRequest(
             "Kendi otoparkınızı askıya alamazsınız".to_string(),
         ));

@@ -32,6 +32,15 @@ pub struct AppState {
     // "aynı anda sadece bir task bu kilidi tutabilir" garantisini verip bunu
     // mümkün kılıyor. `.lock()` kilidi alır, scope bitince otomatik bırakılır.
     pub login_attempts: Mutex<HashMap<IpAddr, (u32, Instant)>>,
+    // Refresh cookie'si `Secure` + `SameSite=None` mı (varsayılan, HTTPS),
+    // yoksa `SameSite=Lax` ve Secure'suz mu (`COOKIE_SECURE=false`: alan adı
+    // ve HTTPS olmadan IP üzerinden deneme kurulumu). Tarayıcılar Secure
+    // cookie'yi düz HTTP'de saklamaz.
+    pub cookie_secure: bool,
+    // `TRUST_PROXY=true`: backend bir ters proxy'nin (nginx) arkasında. Login
+    // rate limiter'ı, bağlantı yerel proxy'den geliyorsa istemcinin gerçek
+    // IP'sini `X-Real-IP` başlığından okur; yoksa herkes 127.0.0.1 görünür.
+    pub trust_proxy: bool,
 }
 
 // Neden Arc<AppState> ve düz AppState değil?

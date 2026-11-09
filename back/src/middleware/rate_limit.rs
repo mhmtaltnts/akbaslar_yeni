@@ -37,7 +37,20 @@ pub async fn login_rate_limiter(
     request: Request,
     next: Next,
 ) -> Response {
-    let ip = addr.ip();
+    // nginx arkasında bağlantı hep 127.0.0.1'den gelir: güvenilen yerel
+    // proxy'nin ilettiği `X-Real-IP`'yi kullan. Başlığı sadece bağlantı yerel
+    // makineden geliyorsa dikkate alıyoruz -- aksi halde dışarıdan gelen biri
+    // başlığı her istekte değiştirerek limiti atlatabilirdi.
+    let ip = if state.trust_proxy && addr.ip().is_loopback() {
+        request
+            .headers()
+            .get("x-real-ip")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.trim().parse::<std::net::IpAddr>().ok())
+            .unwrap_or(addr.ip())
+    } else {
+        addr.ip()
+    };
     let now = Instant::now();
 
     // `express-rate-limit`'in varsayılan algoritması "sabit pencere" (fixed

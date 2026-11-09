@@ -67,6 +67,8 @@ async fn main() {
             .expect("REFRESH_TOKEN_SECRET .env içinde tanımlı olmalı"),
         db: pool,
         login_attempts: std::sync::Mutex::new(std::collections::HashMap::new()),
+        cookie_secure: env_flag("COOKIE_SECURE", true),
+        trust_proxy: env_flag("TRUST_PROXY", false),
     });
 
     // PORT opsiyonel: yoksa 3500'e düş (`process.env.PORT || 3500` ile aynı fikir).
@@ -133,11 +135,14 @@ async fn main() {
     // `ConnectInfo<SocketAddr>` extractor'ının çalışması için Axum'a
     // bağlantının gerçek adresini de iletmemiz gerekiyor --
     // `into_make_service_with_connect_info` bunun için var.
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", port))
+    // HOST opsiyonel: canlıda `127.0.0.1` verilir ki backend'e sadece aynı
+    // makinedeki nginx ulaşabilsin; varsayılan tüm arayüzler.
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let listener = tokio::net::TcpListener::bind((host.as_str(), port))
         .await
         .unwrap();
 
-    println!("Server running on port {port}");
+    println!("Server running on {host}:{port}");
 
     axum::serve(
         listener,
@@ -179,4 +184,13 @@ async fn error_check(
     }
 
     Ok("dene: bad-request | unauthorized | forbidden | not-found | conflict | internal | db")
+}
+
+// `true`/`false` (ya da 1/0) değerli opsiyonel ortam değişkeni.
+fn env_flag(name: &str, default: bool) -> bool {
+    match std::env::var(name).map(|v| v.trim().to_lowercase()) {
+        Ok(v) if v == "true" || v == "1" => true,
+        Ok(v) if v == "false" || v == "0" => false,
+        _ => default,
+    }
 }

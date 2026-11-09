@@ -1,4 +1,4 @@
-use axum::http::{HeaderValue, Method};
+use axum::http::{header, HeaderValue, Method};
 use tower_http::cors::{AllowHeaders, AllowOrigin, CorsLayer};
 
 use super::allowed_origins::allowed_origins;
@@ -13,9 +13,13 @@ pub fn build_cors_layer() -> CorsLayer {
         // Node tarafındaki `credentials: true` (cookie'lerin cross-site
         // gönderilebilmesi için gerekli).
         .allow_credentials(true)
-        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
+        // PUT: /tenants/officers (memur otopark izinleri).
+        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE])
         // Preflight isteğinde tarayıcının istediği header'ları aynen yansıt.
         .allow_headers(AllowHeaders::mirror_request())
+        // Excel indirmesinde dosya adını tarayıcıdaki JS okuyabilsin (site ve
+        // API farklı adreslerdeyse varsayılan olarak gizli).
+        .expose_headers([header::CONTENT_DISPOSITION])
         // `move` burada önemli: closure, `origins` vektörünün SAHİPLİĞİNİ
         // alıyor (JS'teki closure'lar referansla yakalar ve GC bunu yönetir;
         // Rust'ta GC yok, bu yüzden closure'ın neyi ne kadar süre

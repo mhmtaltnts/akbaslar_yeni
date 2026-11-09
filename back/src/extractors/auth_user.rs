@@ -27,10 +27,18 @@ pub struct AuthUser {
     pub username: String,
     pub fullname: String,
     pub roles: Vec<String>,
-    // Bu kullanıcının otoparkı. Otoparka ait veriye dokunan HER sorgu
-    // `WHERE tenant_id = ?n` ile bunu kullanmak zorunda.
+    // İsteğin üzerinde çalıştığı otopark. Otoparka ait veriye dokunan HER
+    // sorgu `WHERE tenant_id = ?n` ile bunu kullanmak zorunda. Normalde
+    // kullanıcının kendi otoparkı; SüperAdmin `X-Park-Id` başlığıyla başka
+    // bir otopark seçebilir (bkz. `from_request_parts`).
     pub tenant_id: Uuid,
+    // Kullanıcının kayıtlı olduğu otopark (token'dan). SüperAdmin başka bir
+    // park seçmiş olsa bile değişmez.
+    pub home_tenant_id: Uuid,
 }
+
+// SüperAdmin'in çalışmak istediği otoparkı bildirdiği istek başlığı.
+const PARK_HEADER: &str = "x-park-id";
 
 impl AuthUser {
     pub fn is_super_admin(&self) -> bool {
@@ -141,12 +149,31 @@ impl FromRequestParts<SharedState> for AuthUser {
         let claims = jwt::decode_access_token(token, &state.access_token_secret)
             .map_err(|_| AppError::Forbidden("Erişim Engeli Var".to_string()))?;
 
-        Ok(AuthUser {
+        let mut user = AuthUser {
             id: claims.user_info.id,
             username: claims.user_info.username,
             fullname: claims.user_info.fullname,
             roles: claims.user_info.roles,
             tenant_id: claims.user_info.tenant_id,
-        })
+            home_tenant_id: claims.user_info.tenant_id,
+        };
+
+        // SüperAdmin tüm otoparkların verisine erişebilir: `X-Park-Id`
+        // başlığıyla seçtiği otoparkta, o parkın kurucusu gibi çalışır.
+        // Diğer roller için başlık YOK SAYILIR -- Kurucu/Yönetici/Çalışan
+        // her zaman token'daki kendi otoparkıyla sınırlı.
+        let requested = parts.headers.get(PARK_HEADER).and_then(|v| v.to_str().ok());
+        if let (Some(raw), true) = (requested, user.is_super_admin()) {
+            let park_id = Uuid::parse_str(raw.trim())
+                .map_err(|_| AppError::BadRequest("Seçilen otopark geçersiz".to_string()))?;
+            let exists: Option<Uuid> = sqlx::query_scalar("SELECT id FROM tenants WHERE id = ?1")
+                .bind(park_id)
+                .fetch_optional(&state.db)
+                .await?;
+            user.tenant_id = exists
+                .ok_or_else(|| AppError::BadRequest("Seçilen otopark bulunamadı".to_string()))?;
+        }
+
+        Ok(user)
     }
 }

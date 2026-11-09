@@ -291,6 +291,7 @@ mod tests {
             fullname: "x".to_string(),
             roles: roles.iter().map(|r| r.to_string()).collect(),
             tenant_id: Uuid::new_v4(),
+            home_tenant_id: Uuid::new_v4(),
         }
     }
 
