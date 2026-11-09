@@ -16,6 +16,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  INSTANT_MENU,
 } from "@/components/ui/dropdown-menu";
 import {
   Table,
@@ -292,13 +293,13 @@ function NoteActions({
         </Button>
       )}
       {canManage && (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon-sm" aria-label="Diğer işlemler">
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className={INSTANT_MENU}>
             <DropdownMenuItem asChild>
               <Link to="/dashboard/notes/$noteId/edit" params={{ noteId }}>
                 <Pencil /> Düzenle

@@ -51,6 +51,14 @@ function DropdownMenuContent({
   )
 }
 
+// Uzun listelerdeki satır menüleri için: animasyonsuz açılır. Bunu
+// `<DropdownMenu modal={false}>` ile birlikte kullanın; modal mod açılışta
+// sayfa kaydırmasını kilitleyip tüm sayfayı yeniden hesaplatıyor. İkisi
+// birlikte iPhone'da menünün geç açılmasına yol açıyordu.
+// `!` (important): tailwindcss-animate sınıfları CSS'te sonra geldiği ve
+// tailwind-merge onları tanımadığı için düz animate-none etkisiz kalıyordu.
+const INSTANT_MENU = "data-[state=open]:animate-none! data-[state=closed]:animate-none!"
+
 function DropdownMenuGroup({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
@@ -239,6 +247,7 @@ function DropdownMenuSubContent({
 }
 
 export {
+  INSTANT_MENU,
   DropdownMenu,
   DropdownMenuPortal,
   DropdownMenuTrigger,

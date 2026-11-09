@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  INSTANT_MENU,
 } from "@/components/ui/dropdown-menu";
 import {
   Table,
@@ -387,13 +388,13 @@ function RaporActions({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon-sm" aria-label="İşlemler">
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className={INSTANT_MENU}>
         <DropdownMenuItem onClick={() => navigate({ to: "/dashboard/rapor/$noteId", params: { noteId }, search })}>
           <Eye /> Detay
         </DropdownMenuItem>
