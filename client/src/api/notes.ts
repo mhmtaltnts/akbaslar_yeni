@@ -55,8 +55,20 @@ export const notesQuery = queryOptions({
 });
 
 // Parktaki tek bir araç: liste önbelleğinden seçilir (ayrı istek yok).
+// Tek kayıt gösteren sayfalar (çıkış/gümrük/düzenleme formları, rapor detayı)
+// önbellekteki veri bu süreden yeniyse sunucuya HİÇ gitmez. Önceden form her
+// açılışta arkada tüm listeyi (araçlar 69 KB, rapor sayfası 1000 kayıt
+// 360 KB) yeniden indiriyordu. Liste ekranı zaten 15 sn'de bir tazeleniyor ve
+// her kayıt işlemi önbelleği geçersiz kılıyor (invalidate, staleTime'ı ezer).
+export const NOTE_FORM_STALE_TIME = 60_000;
+export const RAPOR_DETAIL_STALE_TIME = 5 * 60_000;
+
 export const noteByIdQuery = (id: string) =>
-  queryOptions({ ...notesQuery, select: (notes: Note[]) => notes.find((n) => n.id === id) ?? null });
+  queryOptions({
+    ...notesQuery,
+    staleTime: NOTE_FORM_STALE_TIME,
+    select: (notes: Note[]) => notes.find((n) => n.id === id) ?? null,
+  });
 
 export type RaporPage = { notes: Note[]; count: number; pageCount: number };
 

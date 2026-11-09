@@ -1,7 +1,7 @@
 import { type ReactNode, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileQuestion } from "lucide-react";
-import { noteByIdQuery, raporQuery } from "@/api/notes";
+import { noteByIdQuery, RAPOR_DETAIL_STALE_TIME, raporQuery } from "@/api/notes";
 import type { Note } from "@/api/types";
 import type { RaporSearch } from "@/lib/rapor-search";
 import { apiErrorMessage } from "@/lib/format";
@@ -47,6 +47,7 @@ export function RaporNoteGate({
 }) {
   const { data, isPending, isError, error } = useQuery({
     ...raporQuery(search),
+    staleTime: RAPOR_DETAIL_STALE_TIME,
     select: (d) => d.notes.find((n) => n.id === id) ?? null,
   });
   const note = useStickyNote(data);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { raporQuery, useDeleteNote, useUpdateRapor } from "@/api/notes";
+import { RAPOR_DETAIL_STALE_TIME, raporQuery, useDeleteNote, useUpdateRapor } from "@/api/notes";
 import type { Note } from "@/api/types";
 import { RaporNoteGate } from "@/components/app/note-gate";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
@@ -19,8 +19,9 @@ export const Route = createFileRoute("/dashboard/rapor/$noteId/edit")({
   validateSearch: validateRaporSearch,
   loaderDeps: ({ search }) => search,
   // Beklemiyoruz: önbellekteki veriyle sayfa hemen açılır (RaporNoteGate yükleniyor durumunu gösterir).
+  // Önbellekte yeterince yeni veri varsa sunucuya gitmez.
   loader: ({ context, deps }) => {
-    void context.queryClient.prefetchQuery(raporQuery(deps));
+    void context.queryClient.prefetchQuery({ ...raporQuery(deps), staleTime: RAPOR_DETAIL_STALE_TIME });
   },
   component: EditRapor,
 });

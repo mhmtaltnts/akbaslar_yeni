@@ -1,4 +1,4 @@
-import { raporQuery } from "@/api/notes";
+import { RAPOR_DETAIL_STALE_TIME, raporQuery } from "@/api/notes";
 import type { Note } from "@/api/types";
 import { RaporNoteGate } from "@/components/app/note-gate";
 import { DetailList } from "@/components/app/page";
@@ -17,8 +17,9 @@ export const Route = createFileRoute("/dashboard/rapor/$noteId/")({
   validateSearch: validateRaporSearch,
   loaderDeps: ({ search }) => search,
   // Beklemiyoruz: önbellekteki veriyle sayfa hemen açılır (RaporNoteGate yükleniyor durumunu gösterir).
+  // Önbellekte yeterince yeni veri varsa sunucuya gitmez.
   loader: ({ context, deps }) => {
-    void context.queryClient.prefetchQuery(raporQuery(deps));
+    void context.queryClient.prefetchQuery({ ...raporQuery(deps), staleTime: RAPOR_DETAIL_STALE_TIME });
   },
   component: NoteDetail,
 });
