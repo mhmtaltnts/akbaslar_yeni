@@ -40,7 +40,9 @@ import {
   PlusCircle,
   Truck,
 } from "lucide-react";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
+import useMediaQuery from "@/utils/hooks/useMediaQuery";
+import { useIncrementalList } from "@/utils/hooks/useIncrementalList";
 
 export const Route = createFileRoute("/dashboard/notes/")({
   // Önbellekte varsa beklemeden aç (yenileme arkada); bayat veriyi engelleyici
@@ -54,8 +56,17 @@ const SEARCH_KEYS = ["dorse", "getiren", "firma", "mal", "gumrukBilgi", "girisYa
 function RouteComponent() {
   useTitle("Parktaki Araçlar");
   const [search, setSearch] = useState("");
-  const { roles, isOfficer } = useAuth();
+  const { roles, isOfficer, isAdmin, isManager } = useAuth();
   const ability = defineAbilityFor(roles);
+  // Yalnızca görünen düzeni çiz: gizli masaüstü tablosu mobilde de DOM'da
+  // duruyordu (191 araçta ~7 bin eleman).
+  const isDesktop = useMediaQuery("(min-width: 768px)"); // Tailwind md
+  // Yetkiler satır başına değil sayfada bir kez hesaplanır.
+  const perms: NotePerms = {
+    canCustoms: ability.can("update", "notes", "Gümrük"),
+    canExit: ability.can("update", "notes", "all"),
+    canManage: isAdmin || isManager,
+  };
 
   const { data: notes = [], isLoading, isSuccess, isError, error } = useQuery({
     ...notesQuery,
@@ -63,9 +74,12 @@ function RouteComponent() {
   });
 
   const isEmpty = isSuccess && notes.length === 0;
-  const filtered = search.trim()
-    ? notes.filter((n) => SEARCH_KEYS.some((k) => matchesSearch(n[k], search)))
+  // Yazılan harf kutuya hemen düşsün; liste süzme işi ardından (ertelenmiş) yapılır.
+  const query = useDeferredValue(search.trim());
+  const filtered = query
+    ? notes.filter((n) => SEARCH_KEYS.some((k) => matchesSearch(n[k], query)))
     : notes;
+  const { visible, hasMore, sentinelRef } = useIncrementalList(filtered, query);
 
   return (
     <>
@@ -133,28 +147,28 @@ function RouteComponent() {
 
         {isSuccess && filtered.length > 0 && (
           <>
-            {/* Masaüstü: tablo */}
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/40 hover:bg-muted/40">
-                    {isOfficer && <TableHead className="pl-4">Otopark</TableHead>}
-                    <TableHead className={isOfficer ? undefined : "pl-4"}>Dorse</TableHead>
-                    <TableHead>Çekici</TableHead>
-                    <TableHead>Firma / Yük</TableHead>
-                    <TableHead>Gümrük</TableHead>
-                    <TableHead>Giriş</TableHead>
-                    <TableHead className="hidden xl:table-cell">Giriş Yapan</TableHead>
-                    <TableHead className="pr-4 text-right">İşlemler</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((note) => (
-                    <TableRow key={note.id} className={isPendingNote(note) ? "opacity-60" : undefined}>
-                      {isOfficer && (
-                        <TableCell className="max-w-44 pl-4">
-                          <span className="block truncate font-medium">{note.parkName}</span>
-                        </TableCell>
+            {isDesktop ? (
+              <div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 hover:bg-muted/40">
+                      {isOfficer && <TableHead className="pl-4">Otopark</TableHead>}
+                      <TableHead className={isOfficer ? undefined : "pl-4"}>Dorse</TableHead>
+                      <TableHead>Çekici</TableHead>
+                      <TableHead>Firma / Yük</TableHead>
+                      <TableHead>Gümrük</TableHead>
+                      <TableHead>Giriş</TableHead>
+                      <TableHead className="hidden xl:table-cell">Giriş Yapan</TableHead>
+                      <TableHead className="pr-4 text-right">İşlemler</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visible.map((note) => (
+                      <TableRow key={note.id} className={isPendingNote(note) ? "opacity-60" : undefined}>
+                        {isOfficer && (
+                          <TableCell className="max-w-44 pl-4">
+                            <span className="block truncate font-medium">{note.parkName}</span>
+                          </TableCell>
                       )}
                       <TableCell className={isOfficer ? "max-w-44" : "max-w-44 pl-4"}>
                         <Plate value={note.dorse} truncate />
@@ -177,7 +191,7 @@ function RouteComponent() {
                         {note.girisYapan}
                       </TableCell>
                       <TableCell className="pr-4">
-                        <NoteActions noteId={note.id} pending={isPendingNote(note)} />
+                        <NoteActions noteId={note.id} pending={isPendingNote(note)} perms={perms} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -185,9 +199,9 @@ function RouteComponent() {
               </Table>
             </div>
 
-            {/* Mobil: kartlar */}
-            <ul className="divide-y md:hidden">
-              {filtered.map((note) => (
+            ) : (
+            <ul className="divide-y">
+              {visible.map((note) => (
                 <li key={note.id} className={`space-y-3 p-4 ${isPendingNote(note) ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1.5">
@@ -201,7 +215,7 @@ function RouteComponent() {
                         <Truck className="size-3.5 shrink-0" /> <Plate value={note.getiren} size="sm" truncate />
                       </div>
                     </div>
-                    <NoteActions noteId={note.id} pending={isPendingNote(note)} />
+                    <NoteActions noteId={note.id} pending={isPendingNote(note)} perms={perms} />
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                     <span className="font-medium">{note.firma || "Firma yok"}</span>
@@ -220,6 +234,8 @@ function RouteComponent() {
                 </li>
               ))}
             </ul>
+            )}
+            {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden />}
           </>
         )}
       </div>
@@ -240,8 +256,17 @@ function CustomsBadge({ info }: { info?: string | null }) {
   );
 }
 
-function NoteActions({ noteId, pending }: { noteId: string; pending: boolean }) {
-  const { roles, isAdmin, isManager } = useAuth();
+type NotePerms = { canCustoms: boolean; canExit: boolean; canManage: boolean };
+
+function NoteActions({
+  noteId,
+  pending,
+  perms: { canCustoms, canExit, canManage },
+}: {
+  noteId: string;
+  pending: boolean;
+  perms: NotePerms;
+}) {
   // Optimistik eklenen kayıt henüz sunucuda yok: gerçek kimliği gelene kadar işlem yapılamaz.
   if (pending)
     return (
@@ -249,10 +274,6 @@ function NoteActions({ noteId, pending }: { noteId: string; pending: boolean }) 
         <Loader2 className="size-3.5 animate-spin" /> Kaydediliyor
       </div>
     );
-  const ability = defineAbilityFor(roles);
-  const canCustoms = ability.can("update", "notes", "Gümrük");
-  const canExit = ability.can("update", "notes", "all");
-  const canManage = isAdmin || isManager;
 
   return (
     <div className="flex items-center justify-end gap-1">

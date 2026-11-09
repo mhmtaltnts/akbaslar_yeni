@@ -32,6 +32,7 @@ import { apiErrorMessage, formatDateTime, stayDays } from "@/lib/format";
 import { type RaporSearch, validateRaporSearch, withPage } from "@/lib/rapor-search";
 import useAuth from "@/utils/hooks/useAuth";
 import useMediaQuery from "@/utils/hooks/useMediaQuery";
+import { useIncrementalList } from "@/utils/hooks/useIncrementalList";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -122,6 +123,9 @@ function RouteComponent() {
   const count = data?.count ?? 0;
   const pageCount = data?.pageCount ?? 1;
   const filtered = notes; // arama ve tarih filtresi backend'de uygulanıyor
+  // Bir sayfada 1000 kayıt var: hepsini tek seferde çizmek mobilde saniyelerce
+  // kilitleniyordu. Sayfa/filtre değişince baştan başlar.
+  const { visible, hasMore, sentinelRef } = useIncrementalList(filtered, `${page}|${q ?? ""}|${from ?? ""}|${to ?? ""}`);
   const hasFilter = Boolean(q || from || to);
 
   const goTo = (p: number) =>
@@ -253,7 +257,7 @@ function RouteComponent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((n) => (
+                  {visible.map((n) => (
                     <TableRow key={n.id}>
                       <TableCell className="max-w-36 pl-4 xl:max-w-44">
                         <Plate value={n.dorse} truncate />
@@ -292,7 +296,7 @@ function RouteComponent() {
             </div>
           ) : (
             <ul className="divide-y">
-              {filtered.map((n) => (
+              {visible.map((n) => (
                 <li key={n.id} className="space-y-2 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -309,6 +313,7 @@ function RouteComponent() {
               ))}
             </ul>
           ))}
+        {hasMore && <div ref={sentinelRef} className="h-px" aria-hidden />}
 
         {isSuccess && pageCount > 1 && (
           <div className="flex items-center justify-between border-t px-4 py-3">
