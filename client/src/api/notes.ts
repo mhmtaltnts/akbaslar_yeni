@@ -1,6 +1,29 @@
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, apiFetch } from "@/lib/api";
+import { ApiError, apiDownload, apiFetch } from "@/lib/api";
 import { type Message, type Note, withId } from "./types";
+import { raporFilterParams, type RaporSearch } from "@/lib/rapor-search";
+
+function withPageParam(search: RaporSearch) {
+  const p = raporFilterParams(search);
+  p.set("page", String(search.page ?? 1));
+  return p.toString();
+}
+
+// Rapor filtresindeki TÜM kayıtları (sayfalama olmadan) Excel olarak indirir.
+export async function downloadRaporExcel(search: RaporSearch) {
+  const p = raporFilterParams(search);
+  // Tarih hücreleri kullanıcının saat diliminde yazılsın (dakika, UTC'den fark).
+  p.set("tz", String(-new Date().getTimezoneOffset()));
+  const { blob, filename } = await apiDownload(`/rapor/export?${p}`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename ?? "rapor.xlsx";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 type RawNote = Omit<Note, "id"> & { _id: string };
 
@@ -31,14 +54,15 @@ export const noteByIdQuery = (id: string) =>
 
 export type RaporPage = { notes: Note[]; count: number; pageCount: number };
 
-export const raporQuery = (page: number) =>
+// Rapor filtresi (sayfa, arama, çıkış tarihi aralığı) backend'de uygulanır.
+export const raporQuery = (search: RaporSearch) =>
   queryOptions({
-    queryKey: ["rapor", page],
+    queryKey: ["rapor", search.page ?? 1, search.q ?? "", search.from ?? "", search.to ?? ""],
     queryFn: async (): Promise<RaporPage> => {
       const res = await apiFetch<{
         pagination: { count: number; pageCount: number };
         notes: RawNote[];
-      }>(`/rapor?page=${page}`);
+      }>(`/rapor?${withPageParam(search)}`);
       return {
         notes: res.notes.map((n) => withId(n) as Note),
         count: res.pagination.count,

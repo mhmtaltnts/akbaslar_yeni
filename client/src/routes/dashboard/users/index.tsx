@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiErrorMessage } from "@/lib/format";
+import { apiErrorMessage, matchesSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -42,13 +42,8 @@ function RouteComponent() {
     ...usersQuery,
     refetchInterval: 60000,
   });
-  const q = search.toLocaleLowerCase("tr-TR");
-  const filtered = q
-    ? users.filter(
-        (u) =>
-          u.fullname?.toLocaleLowerCase("tr-TR").includes(q) ||
-          u.username.toLocaleLowerCase("tr-TR").includes(q),
-      )
+  const filtered = search.trim()
+    ? users.filter((u) => matchesSearch(u.fullname, search) || matchesSearch(u.username, search))
     : users;
   const pending = users.filter((u) => !u.active).length;
 

@@ -1,13 +1,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { setToken } from "@/lib/auth";
+import { setActivePark, setToken } from "@/lib/auth";
 import type { Message } from "./types";
 
 export const useLogin = () =>
   useMutation({
     mutationFn: (body: { username: string; password: string }) =>
       apiFetch<{ accessToken: string }>("/auth/login", { method: "POST", body, auth: false }),
-    onSuccess: ({ accessToken }) => setToken(accessToken),
+    onSuccess: ({ accessToken }) => {
+      setActivePark(null); // önceki SüperAdmin oturumunun park seçimi taşınmasın
+      setToken(accessToken);
+    },
   });
 
 export const useSignup = () =>
@@ -33,6 +36,7 @@ export const useLogout = () => {
   });
   const clearSession = () => {
     setToken(null);
+    setActivePark(null);
     qc.clear();
   };
   return { ...mutation, clearSession };

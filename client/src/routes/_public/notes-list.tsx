@@ -3,7 +3,7 @@ import { publicNotesQuery, publicParksQuery } from "@/api/public";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, PageLoader, SearchInput } from "@/components/app/page";
 import { Plate } from "@/components/app/plate";
-import { formatDateTime, stayLabel } from "@/lib/format";
+import { formatDateTime, matchesSearch, stayLabel } from "@/lib/format";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Building2, Search, Truck } from "lucide-react";
@@ -36,14 +36,12 @@ function PublicNotesList() {
     refetchInterval: 15000,
   });
 
-  const q = search.toLocaleLowerCase("tr-TR");
   const filtered =
     notes?.filter(
       (n) =>
-        !q ||
-        n.dorse?.toLocaleLowerCase("tr-TR").includes(q) ||
-        n.getiren?.toLocaleLowerCase("tr-TR").includes(q) ||
-        n.firma?.toLocaleLowerCase("tr-TR").includes(q),
+        matchesSearch(n.dorse, search) ||
+        matchesSearch(n.getiren, search) ||
+        matchesSearch(n.firma, search),
     ) ?? [];
 
   return (

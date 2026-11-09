@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { apiErrorMessage, formatDateTime, stayLabel } from "@/lib/format";
+import { apiErrorMessage, formatDateTime, matchesSearch, stayLabel } from "@/lib/format";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import defineAbilityFor from "@/utils/permission";
@@ -60,11 +60,8 @@ function RouteComponent() {
   });
 
   const isEmpty = isSuccess && notes.length === 0;
-  const q = search.toLocaleLowerCase("tr-TR");
-  const filtered = q
-    ? notes.filter((n) =>
-        SEARCH_KEYS.some((k) => n[k]?.toLocaleLowerCase("tr-TR").includes(q)),
-      )
+  const filtered = search.trim()
+    ? notes.filter((n) => SEARCH_KEYS.some((k) => matchesSearch(n[k], search)))
     : notes;
 
   return (
@@ -156,11 +153,11 @@ function RouteComponent() {
                           <span className="block truncate font-medium">{note.parkName}</span>
                         </TableCell>
                       )}
-                      <TableCell className={isOfficer ? undefined : "pl-4"}>
-                        <Plate value={note.dorse} />
+                      <TableCell className={isOfficer ? "max-w-44" : "max-w-44 pl-4"}>
+                        <Plate value={note.dorse} truncate />
                       </TableCell>
-                      <TableCell>
-                        <Plate value={note.getiren} />
+                      <TableCell className="max-w-48">
+                        <Plate value={note.getiren} truncate />
                       </TableCell>
                       <TableCell className="max-w-56">
                         <p className="truncate font-medium">{note.firma || "—"}</p>
@@ -190,15 +187,15 @@ function RouteComponent() {
               {filtered.map((note) => (
                 <li key={note.id} className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1.5">
+                    <div className="min-w-0 space-y-1.5">
                       {isOfficer && note.parkName && (
                         <p className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
                           <Building2 className="size-3.5" /> {note.parkName}
                         </p>
                       )}
-                      <Plate value={note.dorse} />
-                      <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-                        <Truck className="size-3.5" /> <Plate value={note.getiren} size="sm" />
+                      <Plate value={note.dorse} truncate />
+                      <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs">
+                        <Truck className="size-3.5 shrink-0" /> <Plate value={note.getiren} size="sm" truncate />
                       </div>
                     </div>
                     <NoteActions noteId={note.id} />

@@ -1,4 +1,4 @@
-import { useToken } from "@/lib/auth";
+import { useActivePark, useToken } from "@/lib/auth";
 import { jwtDecode } from "jwt-decode";
 import { SUPER_ADMIN, isOfficer, type Roles } from "../config/roles";
 
@@ -15,6 +15,7 @@ type AccessToken = {
 
 const useAuth = () => {
   const token = useToken();
+  const activePark = useActivePark();
   let isManager = false;
   let isAdmin = false;
   let status = "Çalışan";
@@ -46,6 +47,8 @@ const useAuth = () => {
       isOfficer: isOfficer(roles),
       tenantId,
       tenantName,
+      // Ekranda gösterilecek otopark: SüperAdmin başka bir park seçtiyse o.
+      parkName: isSuperAdmin && activePark ? activePark.name : tenantName,
     };
   }
 
@@ -59,6 +62,7 @@ const useAuth = () => {
     status,
     tenantId: undefined,
     tenantName: undefined,
+    parkName: undefined,
   };
 };
 export default useAuth;

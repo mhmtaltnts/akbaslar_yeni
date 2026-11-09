@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FileQuestion } from "lucide-react";
 import { noteByIdQuery, raporQuery } from "@/api/notes";
 import type { Note } from "@/api/types";
+import type { RaporSearch } from "@/lib/rapor-search";
 import { apiErrorMessage } from "@/lib/format";
 import { EmptyState, ErrorAlert, PageLoader } from "./page";
 
@@ -27,15 +28,15 @@ export function NoteGate({ id, children }: { id: string; children: (note: Note) 
 // önbelleğinden seçilir.
 export function RaporNoteGate({
   id,
-  page,
+  search,
   children,
 }: {
   id: string;
-  page: number;
+  search: RaporSearch;
   children: (note: Note) => ReactNode;
 }) {
   const { data: note, isPending, isError, error } = useQuery({
-    ...raporQuery(page),
+    ...raporQuery(search),
     select: (d) => d.notes.find((n) => n.id === id) ?? null,
   });
   if (isPending) return <PageLoader />;

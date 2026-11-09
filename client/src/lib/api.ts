@@ -1,4 +1,4 @@
-import { getToken, setToken } from "./auth";
+import { getActivePark, getToken, setToken } from "./auth";
 
 const BASE_URL = import.meta.env.VITE_API_URL as string;
 
@@ -21,6 +21,9 @@ async function rawFetch(path: string, { method = "GET", body }: Options) {
   if (body !== undefined) headers["Content-Type"] = "application/json";
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  // SüperAdmin'in park seçimi (bkz. lib/auth.ts); diğer rollerde backend yok sayar.
+  const park = getActivePark();
+  if (park) headers["X-Park-Id"] = park.id;
   try {
     return await fetch(BASE_URL + path, {
       method,
@@ -74,4 +77,21 @@ export async function apiFetch<T>(path: string, options: Options = {}): Promise<
     if (fresh) res = await rawFetch(path, options);
   }
   return parse<T>(res);
+}
+
+// Dosya indirme (örn. Excel): `apiFetch` gibi 403'te token'ı yenileyip bir
+// kez tekrar dener, ama yanıtı JSON yerine Blob olarak döner. Dosya adı
+// `Content-Disposition` başlığından (UTF-8 `filename*` öncelikli) okunur.
+export async function apiDownload(path: string): Promise<{ blob: Blob; filename?: string }> {
+  const sentWith = getToken();
+  let res = await rawFetch(path, {});
+  if (res.status === 403 && sentWith) {
+    const fresh = getToken() !== sentWith ? getToken() : await refreshAccessToken();
+    if (fresh) res = await rawFetch(path, {});
+  }
+  if (!res.ok) await parse(res); // hata mesajını ApiError olarak fırlatır
+  const cd = res.headers.get("Content-Disposition") ?? "";
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(cd)?.[1];
+  const plain = /filename="([^"]+)"/i.exec(cd)?.[1];
+  return { blob: await res.blob(), filename: utf8 ? decodeURIComponent(utf8) : plain };
 }

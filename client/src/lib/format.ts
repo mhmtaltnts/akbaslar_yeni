@@ -73,3 +73,16 @@ export function apiErrorMessage(err: unknown, fallback = "Bir hata oluştu") {
   if (e?.status === "FETCH_ERROR") return "Sunucuya ulaşılamıyor";
   return fallback;
 }
+
+// Arama için metni normalleştirir: büyük/küçük harf duyarsız ve Türkçe I/İ/ı/i
+// aynı sayılır. Eski kayıtların çoğu ASCII büyük harfle girilmiş
+// ("KAYIKCIOGLU"); Türkçe küçültmede "I" -> "ı" olduğu için "kayikcioglu"
+// araması eşleşmiyordu. Her iki taraf da bu fonksiyondan geçmeli.
+export function searchKey(value: string | null | undefined): string {
+  return (value ?? "").toLocaleLowerCase("tr-TR").replace(/ı/g, "i");
+}
+
+// `value` içinde `query` geçiyor mu (bkz. `searchKey`). Boş sorgu her şeyle eşleşir.
+export function matchesSearch(value: string | null | undefined, query: string): boolean {
+  return searchKey(value).includes(searchKey(query.trim()));
+}

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { apiErrorMessage, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
-import { pageSearch, validateRaporSearch } from "@/lib/rapor-search";
+import { type RaporSearch, validateRaporSearch } from "@/lib/rapor-search";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -17,23 +17,26 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/rapor/$noteId/edit")({
   validateSearch: validateRaporSearch,
-  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
-  loader: ({ context, deps }) => context.queryClient.prefetchQuery(raporQuery(deps.page)),
+  loaderDeps: ({ search }) => search,
+  // Beklemiyoruz: önbellekteki veriyle sayfa hemen açılır (RaporNoteGate yükleniyor durumunu gösterir).
+  loader: ({ context, deps }) => {
+    void context.queryClient.prefetchQuery(raporQuery(deps));
+  },
   component: EditRapor,
 });
 
 function EditRapor() {
   useTitle("Kaydı Düzenle");
   const { noteId } = Route.useParams();
-  const { page = 1 } = Route.useSearch();
+  const search = Route.useSearch();
   return (
-    <RaporNoteGate id={noteId} page={page}>
-      {(note) => <EditNoteForm note={note} page={page} />}
+    <RaporNoteGate id={noteId} search={search}>
+      {(note) => <EditNoteForm note={note} search={search} />}
     </RaporNoteGate>
   );
 }
 
-const EditNoteForm = ({ note, page }: { note: Note; page: number }) => {
+const EditNoteForm = ({ note, search }: { note: Note; search: RaporSearch }) => {
   const { isManager, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [dorse, setDorse] = useState(note.dorse ?? "");
@@ -53,7 +56,7 @@ const EditNoteForm = ({ note, page }: { note: Note; page: number }) => {
 
   const done = (msg: string) => () => {
     toast.success(msg);
-    navigate({ to: "/dashboard/rapor", search: pageSearch(page) });
+    navigate({ to: "/dashboard/rapor", search: search });
   };
 
   const onSave = () => {
@@ -95,7 +98,7 @@ const EditNoteForm = ({ note, page }: { note: Note; page: number }) => {
       title="Çıkış Kaydını Düzenle"
       description="Rapordaki kaydın tüm bilgilerini düzeltebilirsiniz."
       backTo="/dashboard/rapor"
-      backSearch={pageSearch(page)}
+      backSearch={search}
       backLabel="Rapor"
       onSubmit={onSave}
       className="max-w-3xl"
@@ -113,7 +116,7 @@ const EditNoteForm = ({ note, page }: { note: Note; page: number }) => {
             </Button>
           )}
           <Button variant="outline" asChild>
-            <Link to="/dashboard/rapor" search={pageSearch(page)}>Vazgeç</Link>
+            <Link to="/dashboard/rapor" search={search}>Vazgeç</Link>
           </Button>
           <Button type="submit" disabled={isLoading || !dorse || !getiren}>
             {isLoading ? <Loader2 className="animate-spin" /> : <Save />} Kaydet

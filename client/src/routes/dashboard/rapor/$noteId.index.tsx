@@ -6,7 +6,7 @@ import { Plate } from "@/components/app/plate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatDateTime, stayDays } from "@/lib/format";
-import { pageSearch, validateRaporSearch } from "@/lib/rapor-search";
+import { type RaporSearch, validateRaporSearch } from "@/lib/rapor-search";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -15,8 +15,11 @@ import type { ReactNode } from "react";
 
 export const Route = createFileRoute("/dashboard/rapor/$noteId/")({
   validateSearch: validateRaporSearch,
-  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
-  loader: ({ context, deps }) => context.queryClient.prefetchQuery(raporQuery(deps.page)),
+  loaderDeps: ({ search }) => search,
+  // Beklemiyoruz: önbellekteki veriyle sayfa hemen açılır (RaporNoteGate yükleniyor durumunu gösterir).
+  loader: ({ context, deps }) => {
+    void context.queryClient.prefetchQuery(raporQuery(deps));
+  },
   component: NoteDetail,
 });
 
@@ -32,15 +35,15 @@ type TimelineEvent = {
 function NoteDetail() {
   useTitle("Kayıt Detayı");
   const { noteId: id } = Route.useParams();
-  const { page = 1 } = Route.useSearch();
+  const search = Route.useSearch();
   return (
-    <RaporNoteGate id={id} page={page}>
-      {(note) => <Detail note={note} id={id} page={page} />}
+    <RaporNoteGate id={id} search={search}>
+      {(note) => <Detail note={note} id={id} search={search} />}
     </RaporNoteGate>
   );
 }
 
-function Detail({ note, id, page }: { note: Note; id: string; page: number }) {
+function Detail({ note, id, search }: { note: Note; id: string; search: RaporSearch }) {
   const { isAdmin, isManager } = useAuth();
 
   const events = [
@@ -81,7 +84,7 @@ function Detail({ note, id, page }: { note: Note; id: string; page: number }) {
     <div className="mx-auto w-full max-w-3xl">
       <Link
         to="/dashboard/rapor"
-        search={pageSearch(page)}
+        search={search}
         className="text-muted-foreground hover:text-foreground mb-4 inline-flex items-center gap-1.5 text-sm font-medium"
       >
         <ArrowLeft className="size-4" /> Rapor
@@ -97,7 +100,7 @@ function Detail({ note, id, page }: { note: Note; id: string; page: number }) {
           </div>
           {(isAdmin || isManager) && (
             <Button asChild variant="outline" size="sm">
-              <Link to="/dashboard/rapor/$noteId/edit" params={{ noteId: id }} search={pageSearch(page)}>
+              <Link to="/dashboard/rapor/$noteId/edit" params={{ noteId: id }} search={search}>
                 <Pencil /> Düzenle
               </Link>
             </Button>

@@ -36,7 +36,7 @@ function greeting() {
 
 function RouteComponent() {
   useTitle("Genel Bakış");
-  const { fullname, roles, tenantName } = useAuth();
+  const { fullname, roles, parkName } = useAuth();
   const ability = defineAbilityFor(roles);
 
   const { data: notes = [] } = useQuery({ ...notesQuery, refetchInterval: 30000 });
@@ -80,7 +80,7 @@ function RouteComponent() {
     <>
       <PageHeader
         title={`${greeting()}, ${fullname?.split(" ")[0] ?? ""}`}
-        description={`${tenantName ?? ""} · ${new Date().toLocaleDateString("tr-TR", {
+        description={`${parkName ?? ""} · ${new Date().toLocaleDateString("tr-TR", {
           weekday: "long",
           day: "numeric",
           month: "long",
@@ -138,9 +138,9 @@ function RouteComponent() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <Plate value={n.dorse} size="sm" />
+                      <Plate value={n.dorse} size="sm" truncate />
                       <span className="text-muted-foreground text-xs">çekici</span>
-                      <Plate value={n.getiren} size="sm" />
+                      <Plate value={n.getiren} size="sm" truncate />
                     </div>
                     <p className="text-muted-foreground mt-1 truncate text-xs">
                       {n.firma || "Firma belirtilmemiş"}
