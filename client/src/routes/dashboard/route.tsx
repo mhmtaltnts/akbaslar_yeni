@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect, useNavigate, useRouter } from "@tanstack/react-router";
 import { DashboardShell } from "@/components/app/dashboard-shell";
 import { PageLoader } from "@/components/app/page";
 import { refreshAccessToken } from "@/lib/api";
@@ -47,9 +47,36 @@ export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
 });
 
+// Panel açıldıktan sonra, tarayıcı boştayken sık kullanılan sayfaların KODU
+// arkada indirilir (veri değil: rapor gibi büyük verileri boşuna indirmeyelim).
+// Sayfalar ilk dokunuşta indirilen ayrı parçalar; telefonda bağlantı ön
+// yüklemesi kapalı olduğu için (bkz. router.tsx) her ilk geçiş bunu bekliyordu.
+const PRELOAD_ROUTE_IDS = [
+  "/dashboard/",
+  "/dashboard/notes/",
+  "/dashboard/notes/new",
+  "/dashboard/notes/$noteId/cikis",
+  "/dashboard/notes/$noteId/gumruk",
+  "/dashboard/rapor/",
+] as const;
+
+function usePreloadPages() {
+  const router = useRouter();
+  useEffect(() => {
+    const t = setTimeout(() => {
+      for (const id of PRELOAD_ROUTE_IDS) {
+        const route = router.routesById[id];
+        if (route) void router.loadRouteChunk(route).catch(() => {});
+      }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [router]);
+}
+
 function RouteComponent() {
   const token = useToken();
   const navigate = useNavigate();
+  usePreloadPages();
 
   // Kullanım sırasında oturum düşerse (refresh başarısız) girişe yönlendir.
   useEffect(() => {

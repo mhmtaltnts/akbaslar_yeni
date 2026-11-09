@@ -43,6 +43,9 @@ async function emptyOn404<T>(p: Promise<T>, empty: T): Promise<T> {
 // Parktaki (çıkışı yapılmamış) araçlar, en yeni giriş üstte.
 export const notesQuery = queryOptions({
   queryKey: ["notes"],
+  // Liste başka sayfadayken de önbellekte kalsın (varsayılan 5 dk): rapordan
+  // ya da formdan dönüşte sayfa beklemeden açılır, yenileme arkada yapılır.
+  gcTime: 30 * 60_000,
   queryFn: async () => {
     const raw = await emptyOn404(apiFetch<RawNote[]>("/notes"), []);
     return raw
