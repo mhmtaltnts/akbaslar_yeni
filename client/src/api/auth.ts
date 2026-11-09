@@ -1,7 +1,16 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { setActivePark, setToken } from "@/lib/auth";
-import type { Message } from "./types";
+import type { CurrentPark, Message } from "./types";
+
+// Bu oturumda üzerinde çalışılan otopark: kendi otoparkı, ya da sitenin alan
+// adının otoparkı (orada çalışma izni varsa). SüperAdmin seçim yapınca
+// otoparka bağlı önbellekle birlikte sıfırlanır.
+export const meQuery = queryOptions({
+  queryKey: ["me"],
+  queryFn: () => apiFetch<CurrentPark>("/auth/me"),
+  staleTime: 5 * 60_000,
+});
 
 export const useLogin = () =>
   useMutation({

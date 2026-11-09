@@ -1,5 +1,6 @@
 import Slider from "@/components/Slider/Slider";
 import { Button } from "@/components/ui/button";
+import { useSiteBrand } from "@/utils/hooks/useSite";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Clock, FileCheck2, ShieldCheck, Truck } from "lucide-react";
@@ -27,7 +28,8 @@ const FEATURES = [
 ];
 
 function Public() {
-  useTitle(import.meta.env.VITE_APP_TITLE ?? "Tır Parkı");
+  const { name } = useSiteBrand();
+  useTitle(name);
 
   return (
     <>
@@ -46,7 +48,7 @@ function Public() {
               <span className="text-primary"> her an takipte.</span>
             </h1>
             <p className="text-muted-foreground max-w-lg text-lg text-pretty">
-              {import.meta.env.VITE_APP_TITLE}, tır ve dorseleriniz için güvenli park alanı ve
+              {name}, tır ve dorseleriniz için güvenli park alanı ve
               gümrük süreçlerinin anlık takibini sunar.
             </p>
             <div className="flex flex-wrap gap-3">

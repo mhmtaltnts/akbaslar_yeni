@@ -1,4 +1,4 @@
-import { officersQuery, tenantsQuery, useAddTenant, useSetOfficerParks, useUpdateTenant } from "@/api/tenants";
+import { officersQuery, staffQuery, tenantsQuery, useAddTenant, useSetOfficerParks, useUpdateTenant } from "@/api/tenants";
 import type { Officer, Tenant } from "@/api/types";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ErrorAlert, Field, PageHeader, PageLoader } from "@/components/app/page";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute } from "@tanstack/react-router";
-import { BadgeCheck, Building2, Check, ExternalLink, Loader2, MapPin, Pencil, Plus, ShieldX, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, ExternalLink, Globe, Loader2, MapPin, Pencil, Plus, ShieldX, Users, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -60,8 +60,39 @@ function ParksPage() {
         </div>
       )}
 
+      {tenants && <StaffSection tenants={tenants} />}
       {tenants && <OfficersSection tenants={tenants} />}
     </>
+  );
+}
+
+// Birden çok otoparkta çalışan personel: SüperAdmin izin verdiği otoparkın
+// alan adından giren personel o otoparkta (kendi rolüyle) çalışır; izin
+// verilmeyen otoparkın adresinden girse bile kendi otoparkında kalır.
+function StaffSection({ tenants }: { tenants: Tenant[] }) {
+  const { data: staff, isLoading, isError, error } = useQuery(staffQuery);
+
+  return (
+    <section className="mt-10">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold">Birden Çok Otoparkta Çalışan Personel</h2>
+        <p className="text-muted-foreground text-sm">
+          Personel, izin verdiğiniz otoparkın alan adından (örn. akbaslartirparki.com) giriş
+          yaptığında o otoparkta kendi rolüyle çalışır. İzni olmayan bir otoparkın adresinden
+          girse bile kendi otoparkında çalışmaya devam eder.
+        </p>
+      </div>
+      {isLoading && <PageLoader />}
+      {isError && <ErrorAlert message={apiErrorMessage(error)} />}
+      {staff?.length === 0 && <EmptyState icon={Users} title="Personel yok" />}
+      {staff && staff.length > 0 && (
+        <div className="space-y-4">
+          {staff.map((o) => (
+            <OfficerCard key={o.id} officer={o} tenants={tenants} />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -138,7 +169,7 @@ function OfficerCard({ officer, tenants }: { officer: Officer; tenants: Tenant[]
               role="checkbox"
               aria-checked={on}
               disabled={isHome}
-              title={isHome ? "Memurun kayıtlı olduğu otopark: her zaman erişebilir" : undefined}
+              title={isHome ? "Kayıtlı olduğu otopark: her zaman erişebilir" : undefined}
               onClick={() => toggle(t.id)}
               className={cn(
                 "flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-left text-sm transition-colors",
@@ -181,12 +212,13 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
   const [name, setName] = useState(tenant.name);
   const [slug, setSlug] = useState(tenant.slug);
   const [address, setAddress] = useState(tenant.address ?? "");
+  const [domain, setDomain] = useState(tenant.domain ?? "");
   const updateTenant = useUpdateTenant();
   const isLoading = updateTenant.isPending;
 
-  const save = (changes: Partial<Tenant> = {}) =>
+  const save = (changes: { active?: boolean } = {}) =>
     updateTenant.mutate(
-      { id: tenant.id, name, slug, address, active: tenant.active, ...changes },
+      { id: tenant.id, name, slug, address, domain, active: tenant.active, ...changes },
       {
         onSuccess: (res) => {
           toast.success(res.message);
@@ -219,6 +251,15 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
               <Field label="Adres" htmlFor={`a-${tenant.id}`}>
                 <Input id={`a-${tenant.id}`} value={address} onChange={(e) => setAddress(e.target.value)} />
               </Field>
+              <Field label="Alan adı" htmlFor={`d-${tenant.id}`} hint="Örn. otoparkim.com (www olmadan). Boş bırakılabilir.">
+                <Input
+                  id={`d-${tenant.id}`}
+                  className="font-mono"
+                  placeholder="otoparkim.com"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                />
+              </Field>
             </div>
           ) : (
             <>
@@ -227,6 +268,16 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
                 {isOwn && <Badge variant="outline">Sizin</Badge>}
               </div>
               <p className="text-muted-foreground font-mono text-xs">{tenant.slug}</p>
+              {tenant.domain && (
+                <a
+                  href={`https://${tenant.domain}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-primary mt-2 flex min-w-0 items-center gap-1.5 text-sm hover:underline"
+                >
+                  <Globe className="size-3.5 shrink-0" /> <span className="truncate">{tenant.domain}</span>
+                </a>
+              )}
               {tenant.address && (
                 <p className="text-muted-foreground mt-2 flex items-start gap-1.5 text-sm">
                   <MapPin className="mt-0.5 size-3.5 shrink-0" /> {tenant.address}
@@ -265,7 +316,11 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
               <Pencil /> Düzenle
             </Button>
             <Button size="sm" variant="ghost" asChild>
-              <a href={`/notes-list?park=${tenant.slug}`} target="_blank" rel="noreferrer">
+              <a
+                href={tenant.domain ? `https://${tenant.domain}/notes-list` : `/notes-list?park=${tenant.slug}`}
+                target="_blank"
+                rel="noreferrer"
+              >
                 <ExternalLink /> Misafir sayfası
               </a>
             </Button>
@@ -287,7 +342,7 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
   );
 }
 
-const emptyForm = { name: "", slug: "", address: "", fullname: "", username: "", password: "" };
+const emptyForm = { name: "", slug: "", address: "", domain: "", fullname: "", username: "", password: "" };
 
 function NewTenantForm({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState(emptyForm);
@@ -304,6 +359,7 @@ function NewTenantForm({ onClose }: { onClose: () => void }) {
         name: form.name,
         slug: form.slug,
         address: form.address,
+        domain: form.domain,
         admin: { fullname: form.fullname, username: form.username, password: form.password },
       },
       {
@@ -347,6 +403,7 @@ function NewTenantForm({ onClose }: { onClose: () => void }) {
           {input("name", "Otopark adı")}
           {input("slug", "Otopark kodu", { mono: true, hint: "Küçük harf, rakam ve tire. Kayıt ve misafir linkinde kullanılır." })}
           {input("address", "Adres", { required: false })}
+          {input("domain", "Alan adı", { mono: true, required: false, hint: "Örn. otoparkim.com (www olmadan). Misafir sayfası ve personel girişi bu adresten." })}
         </div>
         <div className="space-y-4">
           <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Kurucu kullanıcı</p>

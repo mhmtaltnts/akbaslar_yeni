@@ -3,6 +3,14 @@ import { ApiError, apiFetch } from "@/lib/api";
 import { type PublicNote, type PublicPark, withId } from "./types";
 
 // Giriş gerektirmeyen, otopark bazlı endpoint'ler.
+
+// Sitenin açıldığı alan adının otoparkı (yoksa null): marka, adres ve
+// misafir sayfasının varsayılan otoparkı buradan gelir.
+export const publicSiteQuery = queryOptions({
+  queryKey: ["public", "site"],
+  queryFn: () => apiFetch<PublicPark | null>("/public/site", { auth: false }),
+  staleTime: Infinity,
+});
 export const publicParksQuery = queryOptions({
   queryKey: ["public", "parks"],
   queryFn: () => apiFetch<PublicPark[]>("/public/parks", { auth: false }),

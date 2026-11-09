@@ -14,10 +14,11 @@ import {
   X,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLogout } from "@/api/auth";
+import { meQuery, useLogout } from "@/api/auth";
 import { tenantsQuery } from "@/api/tenants";
 import { setActivePark, useActivePark } from "@/lib/auth";
 import useAuth from "@/utils/hooks/useAuth";
+import { useCurrentParkName } from "@/utils/hooks/useSite";
 import defineAbilityFor from "@/utils/permission";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,8 @@ function initials(name?: string) {
 function ParkSwitcher() {
   const { tenantId } = useAuth();
   const active = useActivePark();
+  // Seçim yokken sunucunun bu oturum için belirlediği otopark (alan adı kuralı).
+  const { data: me } = useQuery(meQuery);
   const qc = useQueryClient();
   const { data: tenants } = useQuery(tenantsQuery);
   const navigate = useNavigate();
@@ -81,8 +84,15 @@ function ParkSwitcher() {
 
   const onChange = (id: string) => {
     const park = tenants?.find((t) => t.id === id);
-    setActivePark(!park || id === tenantId ? null : { id: park.id, name: park.name });
-    qc.resetQueries({ predicate: (q) => !["tenants", "officers"].includes(q.queryKey[0] as string) });
+    // Açık seçim olarak saklanır: "seçim yok" alan adının otoparkı demek,
+    // kendi otoparkı değil (başka otoparkın adresindeyken kendi otoparkını
+    // seçebilmeli).
+    setActivePark(park ? { id: park.id, name: park.name } : null);
+    // Otoparktan bağımsız sorgular (otopark ve personel listeleri, sitenin
+    // kendi bilgisi) korunur; "me" dahil gerisi yeni otoparktan yüklenir.
+    qc.resetQueries({
+      predicate: (q) => !["tenants", "officers", "staff", "public"].includes(q.queryKey[0] as string),
+    });
     // Bir kaydın/kullanıcının detayındaysa o kayıt diğer parkta yok: listeye dön.
     if (/^\/dashboard\/(notes|rapor|users)\/./.test(pathname)) {
       navigate({ to: `/dashboard/${pathname.split("/")[2]}` });
@@ -96,7 +106,7 @@ function ParkSwitcher() {
       </label>
       <select
         id="park-switcher"
-        value={active?.id ?? tenantId ?? ""}
+        value={active?.id ?? me?.tenantId ?? tenantId ?? ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={!tenants}
         className="border-input bg-card focus-visible:border-ring focus-visible:ring-ring/50 dark:bg-input/30 h-9 w-full rounded-md border px-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
@@ -137,7 +147,8 @@ function SidebarContent({
   const items = useNavItems();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { fullname, status, parkName, isSuperAdmin } = useAuth();
+  const { fullname, status, isSuperAdmin } = useAuth();
+  const parkName = useCurrentParkName();
   const logout = useLogout();
 
   // Sıra için bkz. `useLogout`: sunucu → sayfa → yerel oturum.
@@ -263,7 +274,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
       }
       return !c;
     });
-  const { parkName } = useAuth();
+  const parkName = useCurrentParkName();
   const { pathname } = useLocation();
 
   // Sayfa değişince mobil menüyü kapat.

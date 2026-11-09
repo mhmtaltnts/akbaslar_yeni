@@ -2,9 +2,11 @@ import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Brand } from "./page";
 import { ThemeToggle } from "./theme";
+import { useSiteBrand } from "@/utils/hooks/useSite";
 
 // Giriş / kayıt sayfaları: solda görsel panel, sağda form.
 export function AuthLayout({ children }: { children: ReactNode }) {
+  const { name } = useSiteBrand();
   return (
     <div className="bg-background grid min-h-screen lg:grid-cols-2">
       <div className="relative hidden overflow-hidden lg:block">
@@ -12,7 +14,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className="absolute inset-0 bg-gradient-to-br from-blue-950/90 via-blue-900/70 to-blue-800/40" />
         <div className="relative flex h-full flex-col justify-between p-10 text-white">
           <Link to="/">
-            <Brand name={import.meta.env.VITE_APP_TITLE} className="text-lg [&>span:first-child]:bg-white [&>span:first-child]:bg-none [&>span:first-child]:text-blue-800" />
+            <Brand name={name} className="text-lg [&>span:first-child]:bg-white [&>span:first-child]:bg-none [&>span:first-child]:text-blue-800" />
           </Link>
           <div className="max-w-md space-y-3">
             <p className="text-3xl font-semibold tracking-tight">Park operasyonlarınız tek ekranda.</p>
@@ -26,7 +28,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       <div className="flex flex-col">
         <div className="flex items-center justify-between p-4 sm:p-6">
           <Link to="/" className="lg:invisible">
-            <Brand name={import.meta.env.VITE_APP_TITLE} className="text-sm" />
+            <Brand name={name} className="text-sm" />
           </Link>
           <ThemeToggle />
         </div>

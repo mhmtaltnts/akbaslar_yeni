@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { stayDays, timeAgo } from "@/lib/format";
 import useAuth from "@/utils/hooks/useAuth";
+import { useCurrentParkName } from "@/utils/hooks/useSite";
 import useTitle from "@/utils/hooks/useTitle";
 import defineAbilityFor from "@/utils/permission";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -36,7 +37,8 @@ function greeting() {
 
 function RouteComponent() {
   useTitle("Genel Bakış");
-  const { fullname, roles, parkName } = useAuth();
+  const { fullname, roles } = useAuth();
+  const parkName = useCurrentParkName();
   const ability = defineAbilityFor(roles);
 
   const { data: notes = [] } = useQuery({ ...notesQuery, refetchInterval: 30000 });

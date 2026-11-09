@@ -34,8 +34,14 @@ export type Tenant = {
   name: string;
   slug: string;
   address?: string | null;
+  // Otoparkın sitesinin alan adı ("www." olmadan).
+  domain?: string | null;
   active: boolean;
 };
+
+// GET /auth/me: bu istekte üzerinde çalışılan otopark (alan adı kuralı ve
+// SüperAdmin seçimi uygulanmış hali).
+export type CurrentPark = { tenantId: string; tenantName: string; isHome: boolean };
 
 // Gümrük memuru ve SüperAdmin'in ona verdiği ek otopark izinleri.
 export type Officer = {

@@ -25,6 +25,7 @@ export type NewTenant = {
   name: string;
   slug: string;
   address?: string;
+  domain?: string;
   admin: { fullname: string; username: string; password: string };
 };
 export const useAddTenant = () =>
@@ -39,15 +40,37 @@ export const officersQuery = queryOptions({
     ),
 });
 
+// Memur ve SüperAdmin dışındaki personel ve ek otopark izinleri: izin
+// verilen otoparkın alan adından girince o otoparkta çalışırlar.
+export const staffQuery = queryOptions({
+  queryKey: ["staff"],
+  queryFn: async () =>
+    (await apiFetch<(Omit<Officer, "id"> & { _id: string })[]>("/tenants/staff")).map(
+      (o) => withId(o) as Officer,
+    ),
+});
+
+// Memur veya personelin ek otopark izinlerini değiştirir.
 export const useSetOfficerParks = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { userId: string; parkIds: string[] }) =>
       apiFetch<Message>("/tenants/officers", { method: "PUT", body }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["officers"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["officers"] });
+      qc.invalidateQueries({ queryKey: ["staff"] });
+    },
   });
 };
 
-export type TenantUpdate = { id: string; name: string; slug: string; address?: string | null; active: boolean };
+// `domain`: boş metin alan adını kaldırır; gönderilmezse değişmez.
+export type TenantUpdate = {
+  id: string;
+  name: string;
+  slug: string;
+  address?: string | null;
+  domain?: string;
+  active: boolean;
+};
 export const useUpdateTenant = () =>
   useTenantMutation((body: TenantUpdate) => apiFetch<Message>("/tenants", { method: "PATCH", body }));

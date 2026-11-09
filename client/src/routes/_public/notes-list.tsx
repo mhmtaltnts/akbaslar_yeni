@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { EmptyState, PageLoader, SearchInput } from "@/components/app/page";
 import { Plate } from "@/components/app/plate";
 import { formatDateTime, matchesSearch, stayLabel } from "@/lib/format";
+import { useSiteBrand } from "@/utils/hooks/useSite";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Building2, Search, Truck } from "lucide-react";
@@ -25,9 +26,11 @@ function PublicNotesList() {
   const [search, setSearch] = useState("");
 
   const { data: parks, isLoading: parksLoading } = useQuery(publicParksQuery);
+  const { site } = useSiteBrand();
 
-  // Tek otopark varsa seçim yaptırmadan onu göster.
-  const slug = park ?? (parks?.length === 1 ? parks[0].slug : undefined);
+  // Adresteki seçim; yoksa sitenin alan adının otoparkı (akbaslartirparki.com
+  // -> Gebze Konak); o da yoksa ve tek otopark varsa seçim yaptırmadan o.
+  const slug = park ?? site?.slug ?? (parks?.length === 1 ? parks[0].slug : undefined);
   const current = parks?.find((p) => p.slug === slug);
 
   const { data: notes, isLoading, isSuccess, isError } = useQuery({
