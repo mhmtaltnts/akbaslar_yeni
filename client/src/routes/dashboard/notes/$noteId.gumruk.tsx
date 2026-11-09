@@ -3,10 +3,9 @@ import type { Note } from "@/api/types";
 import { FormCard } from "@/components/app/form-card";
 import { NoteGate } from "@/components/app/note-gate";
 import { NoteSummary } from "@/components/app/note-summary";
-import { ErrorAlert, Field } from "@/components/app/page";
+import { Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { apiErrorMessage } from "@/lib/format";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -15,7 +14,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/notes/$noteId/gumruk")({
-  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
+  // Önbellekte varsa beklemeden aç (yenileme arkada); bayat veriyi engelleyici
+  // biçimde yeniden çekmek, optimistik güncellemeyle yarışırdı.
+  loader: ({ context }) => context.queryClient.prefetchQuery({ ...notesQuery, staleTime: Infinity }),
   component: RouteComponent,
 });
 
@@ -35,15 +36,10 @@ function GumrukForm({ note }: { note: Note }) {
 
   const onSave = () => {
     if (!canSave) return;
-    gumruk.mutate(
-      { id: note.id, gumrukBilgi, gumrukBilgiTarihi: Date.now() },
-      {
-        onSuccess: () => {
-          toast.success("Gümrük bilgisi kaydedildi");
-          navigate({ to: "/dashboard/notes" });
-        },
-      },
-    );
+    // Optimistik: listede hemen görünür; hata olursa hook geri alır.
+    gumruk.mutate({ id: note.id, gumrukBilgi, gumrukBilgiTarihi: Date.now() });
+    toast.success("Gümrük bilgisi kaydedildi");
+    navigate({ to: "/dashboard/notes" });
   };
 
   return (
@@ -64,7 +60,6 @@ function GumrukForm({ note }: { note: Note }) {
         </>
       }
     >
-      {gumruk.isError && <ErrorAlert message={apiErrorMessage(gumruk.error)} />}
       <NoteSummary note={note} showPark={isOfficer} />
       <Field label="Gümrük kaydı *" htmlFor="gumrukBilgi">
         <Textarea

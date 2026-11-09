@@ -77,10 +77,9 @@ function RouteComponent() {
   const deleteNote = useDeleteNote();
   const onDelete = (note: Note) => {
     if (window.confirm(`${note.dorse} kaydını silmek istediğinizden emin misiniz?`)) {
-      deleteNote.mutate(note.id, {
-        onSuccess: () => toast.success("Kayıt silindi"),
-        onError: (err) => toast.error(apiErrorMessage(err)),
-      });
+      // Optimistik: satır hemen kalkar; hata olursa hook geri alıp bildirir.
+      deleteNote.mutate(note.id);
+      toast.success("Kayıt silindi");
     }
   };
   // Filtre değişince 1. sayfaya dön. Fonksiyon biçimi: art arda iki değişiklik

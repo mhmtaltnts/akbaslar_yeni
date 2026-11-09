@@ -1,4 +1,4 @@
-import { notesQuery } from "@/api/notes";
+import { isPendingNote, notesQuery } from "@/api/notes";
 import type { Note } from "@/api/types";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -33,6 +33,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Building2,
   FileCheck2,
+  Loader2,
   LogOut,
   MoreHorizontal,
   Pencil,
@@ -42,7 +43,9 @@ import {
 import { useState } from "react";
 
 export const Route = createFileRoute("/dashboard/notes/")({
-  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
+  // Önbellekte varsa beklemeden aç (yenileme arkada); bayat veriyi engelleyici
+  // biçimde yeniden çekmek, optimistik güncellemeyle yarışırdı.
+  loader: ({ context }) => context.queryClient.prefetchQuery({ ...notesQuery, staleTime: Infinity }),
   component: RouteComponent,
 });
 
@@ -147,7 +150,7 @@ function RouteComponent() {
                 </TableHeader>
                 <TableBody>
                   {filtered.map((note) => (
-                    <TableRow key={note.id}>
+                    <TableRow key={note.id} className={isPendingNote(note) ? "opacity-60" : undefined}>
                       {isOfficer && (
                         <TableCell className="max-w-44 pl-4">
                           <span className="block truncate font-medium">{note.parkName}</span>
@@ -174,7 +177,7 @@ function RouteComponent() {
                         {note.girisYapan}
                       </TableCell>
                       <TableCell className="pr-4">
-                        <NoteActions noteId={note.id} />
+                        <NoteActions noteId={note.id} pending={isPendingNote(note)} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -185,7 +188,7 @@ function RouteComponent() {
             {/* Mobil: kartlar */}
             <ul className="divide-y md:hidden">
               {filtered.map((note) => (
-                <li key={note.id} className="space-y-3 p-4">
+                <li key={note.id} className={`space-y-3 p-4 ${isPendingNote(note) ? "opacity-60" : ""}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1.5">
                       {isOfficer && note.parkName && (
@@ -198,7 +201,7 @@ function RouteComponent() {
                         <Truck className="size-3.5 shrink-0" /> <Plate value={note.getiren} size="sm" truncate />
                       </div>
                     </div>
-                    <NoteActions noteId={note.id} />
+                    <NoteActions noteId={note.id} pending={isPendingNote(note)} />
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                     <span className="font-medium">{note.firma || "Firma yok"}</span>
@@ -237,8 +240,15 @@ function CustomsBadge({ info }: { info?: string | null }) {
   );
 }
 
-function NoteActions({ noteId }: { noteId: string }) {
+function NoteActions({ noteId, pending }: { noteId: string; pending: boolean }) {
   const { roles, isAdmin, isManager } = useAuth();
+  // Optimistik eklenen kayıt henüz sunucuda yok: gerçek kimliği gelene kadar işlem yapılamaz.
+  if (pending)
+    return (
+      <div className="text-muted-foreground flex items-center justify-end gap-1.5 text-xs">
+        <Loader2 className="size-3.5 animate-spin" /> Kaydediliyor
+      </div>
+    );
   const ability = defineAbilityFor(roles);
   const canCustoms = ability.can("update", "notes", "Gümrük");
   const canExit = ability.can("update", "notes", "all");

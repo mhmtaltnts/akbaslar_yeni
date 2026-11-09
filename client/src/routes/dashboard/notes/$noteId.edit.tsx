@@ -2,10 +2,10 @@ import { notesQuery, useDeleteNote, useUpdateNote } from "@/api/notes";
 import type { Note } from "@/api/types";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
 import { NoteGate } from "@/components/app/note-gate";
-import { EmptyState, ErrorAlert, Field } from "@/components/app/page";
+import { EmptyState, Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiErrorMessage, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
+import { fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -14,7 +14,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/notes/$noteId/edit")({
-  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
+  // Önbellekte varsa beklemeden aç (yenileme arkada); bayat veriyi engelleyici
+  // biçimde yeniden çekmek, optimistik güncellemeyle yarışırdı.
+  loader: ({ context }) => context.queryClient.prefetchQuery({ ...notesQuery, staleTime: Infinity }),
   component: RouteComponent,
 });
 
@@ -53,26 +55,25 @@ function EditNoteForm({ note }: { note: Note }) {
   const [girisTarihi, setGirisTarihi] = useState(note.girisTarihi ?? null);
 
   const canSave = Boolean(getiren && dorse) && !update.isPending;
-  const done = (msg: string) => () => {
+  // Optimistik: önbellek hemen güncellenir, sayfa sunucuyu beklemeden döner;
+  // hata olursa hook değişikliği geri alıp bildirir.
+  const done = (msg: string) => {
     toast.success(msg);
     navigate({ to: "/dashboard/notes" });
   };
 
   const onSave = () => {
     if (!canSave) return;
-    update.mutate(
-      { id: note.id, getiren, dorse, firma, mal, girisTarihi, guncellemeTarihi: Date.now() },
-      { onSuccess: done("Kayıt güncellendi") },
-    );
+    update.mutate({ id: note.id, getiren, dorse, firma, mal, girisTarihi, guncellemeTarihi: Date.now() });
+    done("Kayıt güncellendi");
   };
 
   const onDelete = () => {
     if (window.confirm(`${note.dorse} kaydını silmek istediğinizden emin misiniz?`)) {
-      remove.mutate(note.id, { onSuccess: done("Kayıt silindi") });
+      remove.mutate(note.id);
+      done("Kayıt silindi");
     }
   };
-
-  const error = update.error ?? remove.error;
 
   return (
     <FormCard
@@ -103,7 +104,6 @@ function EditNoteForm({ note }: { note: Note }) {
         </>
       }
     >
-      {error && <ErrorAlert message={apiErrorMessage(error)} />}
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Dorse plakası *" htmlFor="dorse">
           <Input

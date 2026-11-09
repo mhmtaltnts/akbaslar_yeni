@@ -1,9 +1,8 @@
 import { useAddNote } from "@/api/notes";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
-import { ErrorAlert, Field } from "@/components/app/page";
+import { Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiErrorMessage } from "@/lib/format";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, Save } from "lucide-react";
@@ -28,15 +27,10 @@ function RouteComponent() {
 
   const onSave = () => {
     if (!canSave) return;
-    addNote.mutate(
-      { getiren, dorse, firma, mal, girisTarihi: Date.now() },
-      {
-        onSuccess: () => {
-          toast.success(`${dorse} parka giriş yaptı`);
-          navigate({ to: "/dashboard/notes" });
-        },
-      },
-    );
+    // Optimistik: araç listeye hemen eklenir; hata olursa hook geri alır.
+    addNote.mutate({ getiren, dorse, firma, mal, girisTarihi: Date.now() });
+    toast.success(`${dorse} parka giriş yaptı`);
+    navigate({ to: "/dashboard/notes" });
   };
 
   return (
@@ -57,7 +51,6 @@ function RouteComponent() {
         </>
       }
     >
-      {addNote.isError && <ErrorAlert message={apiErrorMessage(addNote.error)} />}
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Dorse plakası *" htmlFor="dorse">
           <Input

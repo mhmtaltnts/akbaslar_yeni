@@ -1,7 +1,10 @@
-import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { ApiError, apiDownload, apiFetch } from "@/lib/api";
 import { type Message, type Note, withId } from "./types";
 import { raporFilterParams, type RaporSearch } from "@/lib/rapor-search";
+import { apiErrorMessage } from "@/lib/format";
+import useAuth from "@/utils/hooks/useAuth";
 
 function withPageParam(search: RaporSearch) {
   const p = raporFilterParams(search);
@@ -71,26 +74,92 @@ export const raporQuery = (search: RaporSearch) =>
     },
   });
 
-// Bir araç kaydına dokunan her mutation hem parktaki listeyi hem raporu
-// yeniler: hangi listenin etkilendiğini elle takip etmek (eski tag'ler)
-// hataya açıktı.
-function useNoteMutation<V>(fn: (v: V) => Promise<Message>) {
+// Bir araç kaydına dokunan her mutation OPTİMİSTİK çalışır: önbellek
+// (parktaki araçlar + açık rapor sayfaları) istek gitmeden güncellenir, ekran
+// sunucuyu beklemez. Hata olursa önbellek eski haline döner ve kullanıcıya
+// bildirilir. İş bitince her iki liste de sunucudan yenilenir (hangi listenin
+// etkilendiğini elle takip etmek hataya açıktı; optimistik yama sadece
+// aradaki boşluğu doldurur).
+const NOTE_MUTATION = ["note"];
+
+type Patch<V> = (qc: QueryClient, v: V) => void;
+
+function useNoteMutation<V>(fn: (v: V) => Promise<Message>, patch: Patch<V>) {
   const qc = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
+    mutationKey: NOTE_MUTATION,
     mutationFn: fn,
-    // Yenilemeyi BEKLEMİYORUZ (promise döndürmüyoruz): sayfa hemen yönlensin;
-    // aksi halde örn. çıkış yapılan araç listeden kalkınca form bir anlığına
-    // "kayıt yok" durumuna düşerdi.
-    onSuccess: () => {
+    onMutate: async (v) => {
+      // Yoldaki yenilemeler optimistik yamayı eski veriyle ezmesin.
+      await Promise.all([
+        qc.cancelQueries({ queryKey: ["notes"] }),
+        qc.cancelQueries({ queryKey: ["rapor"] }),
+      ]);
+      const snapshot = [
+        ...qc.getQueriesData({ queryKey: ["notes"] }),
+        ...qc.getQueriesData({ queryKey: ["rapor"] }),
+      ];
+      patch(qc, v);
+      return { snapshot };
+    },
+    onError: (err, v, ctx) => {
+      ctx?.snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
+      // Form çoktan kapandığı için girilen bilgiyi kaybetmemek adına aynı
+      // isteği tekrar gönderme imkânı veriyoruz. Tekrar deneme de optimistik
+      // çalışır; yine başarısız olursa bu bildirim yeniden çıkar.
+      toast.error(`İşlem kaydedilemedi, değişiklik geri alındı: ${apiErrorMessage(err)}`, {
+        duration: 15_000,
+        action: {
+          label: "Tekrar dene",
+          // mutateAsync: formun bileşeni kaldırılmış olsa da sonuç promise'i
+          // gelir (mutate'e verilen callback'ler bu durumda çalışmazdı).
+          onClick: () =>
+            mutation
+              .mutateAsync(v)
+              .then(() => toast.success("İşlem kaydedildi"))
+              .catch(() => {}), // hata bildirimi yukarıda zaten gösteriliyor
+        },
+      });
+    },
+    // Yenilemeyi BEKLEMİYORUZ. Art arda birden çok işlem varsa sadece sonuncusu
+    // bitince yenile; yoksa ilk yanıt diğerlerinin optimistik yamasını ezer.
+    onSettled: () => {
+      if (qc.isMutating({ mutationKey: NOTE_MUTATION }) > 1) return;
       qc.invalidateQueries({ queryKey: ["notes"] });
       qc.invalidateQueries({ queryKey: ["rapor"] });
     },
   });
+  return mutation;
 }
 
+// --- Önbellek yamaları ---------------------------------------------------
+
+const patchNotes = (qc: QueryClient, fn: (notes: Note[]) => Note[]) =>
+  qc.setQueryData<Note[]>(notesQuery.queryKey, (old) => (old ? fn(old) : old));
+
+const patchRapor = (qc: QueryClient, fn: (page: RaporPage) => RaporPage) =>
+  qc.setQueriesData<RaporPage>({ queryKey: ["rapor"] }, (old) => (old ? fn(old) : old));
+
+const mergeNote = (id: string, fields: Partial<Note>) => (n: Note) =>
+  n.id === id ? { ...n, ...fields } : n;
+
+// Sunucuya henüz ulaşmamış yeni kayıtların geçici kimliği. Bu satırlarda
+// işlem (çıkış, düzenleme...) yapılamaz; yenilemeyle gerçek kayıt gelir.
+export const TEMP_ID_PREFIX = "temp-";
+export const isPendingNote = (n: Pick<Note, "id">) => n.id.startsWith(TEMP_ID_PREFIX);
+
 export type NewNote = { getiren: string; dorse: string; firma?: string; mal?: string; girisTarihi: number };
-export const useAddNote = () =>
-  useNoteMutation((body: NewNote) => apiFetch<Message>("/notes", { method: "POST", body }));
+export const useAddNote = () => {
+  const { username } = useAuth();
+  return useNoteMutation(
+    (body: NewNote) => apiFetch<Message>("/notes", { method: "POST", body }),
+    (qc, v) =>
+      patchNotes(qc, (notes) => [
+        { ...v, id: `${TEMP_ID_PREFIX}${crypto.randomUUID()}`, girisYapan: username ?? null },
+        ...notes,
+      ]),
+  );
+};
 
 export type NoteUpdate = {
   id: string;
@@ -101,18 +170,33 @@ export type NoteUpdate = {
   girisTarihi?: number | null;
   guncellemeTarihi: number;
 };
-export const useUpdateNote = () =>
-  useNoteMutation((body: NoteUpdate) => apiFetch<Message>("/notes", { method: "PATCH", body }));
+export const useUpdateNote = () => {
+  const { username } = useAuth();
+  return useNoteMutation(
+    (body: NoteUpdate) => apiFetch<Message>("/notes", { method: "PATCH", body }),
+    (qc, { id, ...fields }) =>
+      patchNotes(qc, (notes) => notes.map(mergeNote(id, { ...fields, guncellemeYapan: username }))),
+  );
+};
 
+// Çıkış yapan araç parktan kalkar. Rapora eklemiyoruz: hangi rapor sayfasına
+// / filtreye düşeceğini sunucu belirler, yenilemeyle gelir.
 export const useCikis = () =>
-  useNoteMutation((body: { id: string; goturen: string; cikisTarihi: number }) =>
-    apiFetch<Message>("/cikis", { method: "PATCH", body }),
+  useNoteMutation(
+    (body: { id: string; goturen: string; cikisTarihi: number }) =>
+      apiFetch<Message>("/cikis", { method: "PATCH", body }),
+    (qc, { id }) => patchNotes(qc, (notes) => notes.filter((n) => n.id !== id)),
   );
 
-export const useGumruk = () =>
-  useNoteMutation((body: { id: string; gumrukBilgi: string; gumrukBilgiTarihi: number }) =>
-    apiFetch<Message>("/gumruk", { method: "PATCH", body }),
+export const useGumruk = () => {
+  const { username } = useAuth();
+  return useNoteMutation(
+    (body: { id: string; gumrukBilgi: string; gumrukBilgiTarihi: number }) =>
+      apiFetch<Message>("/gumruk", { method: "PATCH", body }),
+    (qc, { id, ...fields }) =>
+      patchNotes(qc, (notes) => notes.map(mergeNote(id, { ...fields, gumrukYapan: username }))),
   );
+};
 
 export type RaporUpdate = NoteUpdate & {
   goturen?: string | null;
@@ -120,12 +204,30 @@ export type RaporUpdate = NoteUpdate & {
   gumrukBilgi?: string | null;
   gumrukBilgiTarihi?: number | null;
 };
-export const useUpdateRapor = () =>
-  useNoteMutation((body: RaporUpdate) => apiFetch<Message>("/rapor", { method: "PATCH", body }));
+export const useUpdateRapor = () => {
+  const { username } = useAuth();
+  return useNoteMutation(
+    (body: RaporUpdate) => apiFetch<Message>("/rapor", { method: "PATCH", body }),
+    (qc, { id, ...fields }) =>
+      patchRapor(qc, (page) => ({
+        ...page,
+        notes: page.notes.map(mergeNote(id, { ...fields, guncellemeYapan: username })),
+      })),
+  );
+};
 
 export const useDeleteNote = () =>
-  useNoteMutation((id: string) =>
-    apiFetch<{ reply: string }>("/notes", { method: "DELETE", body: { id } }).then((r) => ({
-      message: r.reply,
-    })),
+  useNoteMutation(
+    (id: string) =>
+      apiFetch<{ reply: string }>("/notes", { method: "DELETE", body: { id } }).then((r) => ({
+        message: r.reply,
+      })),
+    (qc, id) => {
+      patchNotes(qc, (notes) => notes.filter((n) => n.id !== id));
+      patchRapor(qc, (page) =>
+        page.notes.some((n) => n.id === id)
+          ? { ...page, notes: page.notes.filter((n) => n.id !== id), count: Math.max(0, page.count - 1) }
+          : page,
+      );
+    },
   );

@@ -3,10 +3,9 @@ import type { Note } from "@/api/types";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
 import { NoteGate } from "@/components/app/note-gate";
 import { NoteSummary } from "@/components/app/note-summary";
-import { ErrorAlert, Field } from "@/components/app/page";
+import { Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { apiErrorMessage } from "@/lib/format";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, LogOut } from "lucide-react";
@@ -14,7 +13,9 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard/notes/$noteId/cikis")({
-  loader: ({ context }) => context.queryClient.prefetchQuery(notesQuery),
+  // Önbellekte varsa beklemeden aç (yenileme arkada); bayat veriyi engelleyici
+  // biçimde yeniden çekmek, optimistik güncellemeyle yarışırdı.
+  loader: ({ context }) => context.queryClient.prefetchQuery({ ...notesQuery, staleTime: Infinity }),
   component: RouteComponent,
 });
 
@@ -33,15 +34,10 @@ function CikisForm({ note }: { note: Note }) {
 
   const onSave = () => {
     if (!canSave) return;
-    cikis.mutate(
-      { id: note.id, goturen, cikisTarihi: Date.now() },
-      {
-        onSuccess: () => {
-          toast.success(`${note.dorse} parktan çıkış yaptı`);
-          navigate({ to: "/dashboard/notes" });
-        },
-      },
-    );
+    // Optimistik: araç listeden hemen kalkar; hata olursa hook geri alır.
+    cikis.mutate({ id: note.id, goturen, cikisTarihi: Date.now() });
+    toast.success(`${note.dorse} parktan çıkış yaptı`);
+    navigate({ to: "/dashboard/notes" });
   };
 
   return (
@@ -62,7 +58,6 @@ function CikisForm({ note }: { note: Note }) {
         </>
       }
     >
-      {cikis.isError && <ErrorAlert message={apiErrorMessage(cikis.error)} />}
       <NoteSummary note={note} />
       <Field label="Götüren çekici plakası *" htmlFor="goturen">
         <Input

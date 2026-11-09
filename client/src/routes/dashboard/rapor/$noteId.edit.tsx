@@ -3,11 +3,11 @@ import { raporQuery, useDeleteNote, useUpdateRapor } from "@/api/notes";
 import type { Note } from "@/api/types";
 import { RaporNoteGate } from "@/components/app/note-gate";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
-import { ErrorAlert, Field } from "@/components/app/page";
+import { Field } from "@/components/app/page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { apiErrorMessage, fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
+import { fromDateTimeLocal, toDateTimeLocal } from "@/lib/format";
 import { type RaporSearch, validateRaporSearch } from "@/lib/rapor-search";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
@@ -54,33 +54,34 @@ const EditNoteForm = ({ note, search }: { note: Note; search: RaporSearch }) => 
   const isLoading = update.isPending;
   const isDeleting = remove.isPending;
 
-  const done = (msg: string) => () => {
+  // Optimistik: rapor önbelleği hemen güncellenir, sayfa sunucuyu beklemeden
+  // döner; hata olursa hook değişikliği geri alıp bildirir.
+  const done = (msg: string) => {
     toast.success(msg);
     navigate({ to: "/dashboard/rapor", search: search });
   };
 
   const onSave = () => {
-    update.mutate(
-      {
-        id: note.id,
-        dorse,
-        getiren,
-        goturen,
-        firma,
-        mal,
-        girisTarihi,
-        cikisTarihi,
-        gumrukBilgi,
-        gumrukBilgiTarihi,
-        guncellemeTarihi: Date.now(),
-      },
-      { onSuccess: done("Kayıt güncellendi") },
-    );
+    update.mutate({
+      id: note.id,
+      dorse,
+      getiren,
+      goturen,
+      firma,
+      mal,
+      girisTarihi,
+      cikisTarihi,
+      gumrukBilgi,
+      gumrukBilgiTarihi,
+      guncellemeTarihi: Date.now(),
+    });
+    done("Kayıt güncellendi");
   };
 
   const onDelete = () => {
     if (window.confirm(`${note.dorse} kaydını silmek istediğinizden emin misiniz?`)) {
-      remove.mutate(note.id, { onSuccess: done("Kayıt silindi") });
+      remove.mutate(note.id);
+      done("Kayıt silindi");
     }
   };
 
@@ -124,8 +125,6 @@ const EditNoteForm = ({ note, search }: { note: Note; search: RaporSearch }) => 
         </>
       }
     >
-      {(update.error ?? remove.error) && <ErrorAlert message={apiErrorMessage(update.error ?? remove.error)} />}
-
       <section className="space-y-4">
         <h2 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Araç</h2>
         <div className="grid gap-5 sm:grid-cols-3">
