@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { apiErrorMessage, matchesSearch } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import useMediaQuery from "@/utils/hooks/useMediaQuery";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil, Trash2, UserPlus, Users } from "lucide-react";
@@ -46,6 +47,8 @@ function RouteComponent() {
     ? users.filter((u) => matchesSearch(u.fullname, search) || matchesSearch(u.username, search))
     : users;
   const pending = users.filter((u) => !u.active).length;
+  // Mobilde tablo sığmıyordu (Sil düğmesi kartın dışında kalıyordu): kart düzeni.
+  const isDesktop = useMediaQuery("(min-width: 640px)"); // Tailwind sm
 
   return (
     <>
@@ -78,13 +81,21 @@ function RouteComponent() {
         )}
         {isSuccess && filtered.length === 0 && <EmptyState icon={Users} title="Kullanıcı bulunamadı" />}
 
-        {filtered.length > 0 && (
+        {filtered.length > 0 && !isDesktop && (
+          <ul className="divide-y">
+            {filtered.map((u) => (
+              <UserCard key={u.id} user={u} />
+            ))}
+          </ul>
+        )}
+
+        {filtered.length > 0 && isDesktop && (
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/40 hover:bg-muted/40">
                 <TableHead className="pl-4">Kullanıcı</TableHead>
                 <TableHead>Roller</TableHead>
-                <TableHead className="hidden sm:table-cell">Durum</TableHead>
+                <TableHead>Durum</TableHead>
                 <TableHead className="pr-4 text-right" />
               </TableRow>
             </TableHeader>
@@ -100,9 +111,31 @@ function RouteComponent() {
   );
 }
 
-function UserRow({ user }: { user: User }) {
+function UserIdentity({ user }: { user: User }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+        {initials(user.fullname || user.username)}
+      </div>
+      <div className="min-w-0">
+        <p className="truncate font-medium">{user.fullname}</p>
+        <p className="text-muted-foreground truncate text-xs">@{user.username}</p>
+      </div>
+    </div>
+  );
+}
+
+function UserStatus({ active }: { active: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-sm whitespace-nowrap">
+      <span className={cn("size-2 rounded-full", active ? "bg-success" : "bg-warning")} />
+      {active ? "Aktif" : "Onay bekliyor"}
+    </span>
+  );
+}
+
+function UserActions({ user }: { user: User }) {
   const deleteUser = useDeleteUser();
-  const isLoading = deleteUser.isPending;
 
   const onDelete = () => {
     if (window.confirm(`${user.fullname} kullanıcısını silmek istiyor musunuz?`)) {
@@ -114,45 +147,56 @@ function UserRow({ user }: { user: User }) {
   };
 
   return (
+    <div className="flex shrink-0 justify-end gap-1">
+      <Button asChild variant="ghost" size="icon-sm" title="Düzenle" aria-label="Düzenle">
+        <Link to="/dashboard/users/$userId/edit" params={{ userId: user.id }}>
+          <Pencil />
+        </Link>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        title="Sil"
+        aria-label="Sil"
+        className="text-muted-foreground hover:text-destructive"
+        onClick={onDelete}
+        disabled={deleteUser.isPending}
+      >
+        <Trash2 />
+      </Button>
+    </div>
+  );
+}
+
+function UserCard({ user }: { user: User }) {
+  return (
+    <li className={cn("space-y-3 p-4", !user.active && "opacity-70")}>
+      <div className="flex items-start justify-between gap-3">
+        <UserIdentity user={user} />
+        <UserActions user={user} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <RoleBadges roles={user.roles} />
+        <UserStatus active={user.active} />
+      </div>
+    </li>
+  );
+}
+
+function UserRow({ user }: { user: User }) {
+  return (
     <TableRow className={cn(!user.active && "opacity-70")}>
-      <TableCell className="pl-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 text-primary flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
-            {initials(user.fullname || user.username)}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate font-medium">{user.fullname}</p>
-            <p className="text-muted-foreground truncate text-xs">@{user.username}</p>
-          </div>
-        </div>
+      <TableCell className="max-w-64 pl-4">
+        <UserIdentity user={user} />
       </TableCell>
       <TableCell>
         <RoleBadges roles={user.roles} />
       </TableCell>
-      <TableCell className="hidden sm:table-cell">
-        <span className="inline-flex items-center gap-1.5 text-sm">
-          <span className={cn("size-2 rounded-full", user.active ? "bg-success" : "bg-warning")} />
-          {user.active ? "Aktif" : "Onay bekliyor"}
-        </span>
+      <TableCell>
+        <UserStatus active={user.active} />
       </TableCell>
       <TableCell className="pr-4">
-        <div className="flex justify-end gap-1">
-          <Button asChild variant="ghost" size="icon-sm" title="Düzenle">
-            <Link to="/dashboard/users/$userId/edit" params={{ userId: user.id }}>
-              <Pencil />
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            title="Sil"
-            className="text-muted-foreground hover:text-destructive"
-            onClick={onDelete}
-            disabled={isLoading}
-          >
-            <Trash2 />
-          </Button>
-        </div>
+        <UserActions user={user} />
       </TableCell>
     </TableRow>
   );

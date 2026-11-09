@@ -52,7 +52,7 @@ function Detail({ note, id, search }: { note: Note; id: string; search: RaporSea
       title: "Parka giriş",
       at: note.girisTarihi,
       by: note.girisYapan,
-      body: <span className="flex items-center gap-2">Getiren çekici <Plate value={note.getiren} size="sm" /></span>,
+      body: <span className="flex flex-wrap items-center gap-x-2 gap-y-1">Getiren çekici <Plate value={note.getiren} size="sm" truncate /></span>,
       tone: "bg-primary/15 text-primary",
     },
     note.gumrukBilgi && {
@@ -75,7 +75,7 @@ function Detail({ note, id, search }: { note: Note; id: string; search: RaporSea
       title: "Parktan çıkış",
       at: note.cikisTarihi,
       by: note.cikisYapan,
-      body: <span className="flex items-center gap-2">Götüren çekici <Plate value={note.goturen} size="sm" /></span>,
+      body: <span className="flex flex-wrap items-center gap-x-2 gap-y-1">Götüren çekici <Plate value={note.goturen} size="sm" truncate /></span>,
       tone: "bg-success/15 text-success",
     },
   ].filter(Boolean) as TimelineEvent[];
@@ -92,8 +92,8 @@ function Detail({ note, id, search }: { note: Note; id: string; search: RaporSea
 
       <div className="bg-card rounded-xl border shadow-xs">
         <div className="flex flex-col gap-4 border-b px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            <Plate value={note.dorse} size="lg" />
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <Plate value={note.dorse} size="lg" truncate />
             {note.girisTarihi && (
               <Badge variant="secondary">{stayDays(note.girisTarihi, note.cikisTarihi)} gün parkta kaldı</Badge>
             )}

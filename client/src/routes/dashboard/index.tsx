@@ -115,8 +115,10 @@ function RouteComponent() {
         />
       </div>
 
+      {/* Bölümler min-w-0: grid hücresi varsayılan olarak içeriğinden dar
+          olamıyor, uzun plakalar dar telefonda sayfayı yatay taşırıyordu. */}
       <div className="mt-6 grid gap-6 lg:grid-cols-5">
-        <section className="bg-card rounded-xl border shadow-xs lg:col-span-3">
+        <section className="bg-card min-w-0 rounded-xl border shadow-xs lg:col-span-3">
           <div className="flex items-center justify-between border-b px-5 py-4">
             <h2 className="font-semibold">Son girişler</h2>
             <Button asChild variant="ghost" size="sm">
@@ -146,7 +148,7 @@ function RouteComponent() {
                       {n.firma || "Firma belirtilmemiş"}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
+                  <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-muted-foreground text-xs whitespace-nowrap">
                       {timeAgo(n.girisTarihi)}
                     </span>
@@ -164,7 +166,7 @@ function RouteComponent() {
           )}
         </section>
 
-        <section className="space-y-3 lg:col-span-2">
+        <section className="min-w-0 space-y-3 lg:col-span-2">
           <h2 className="px-1 font-semibold">Hızlı işlemler</h2>
           {quickActions.map((a) => (
             <Link
