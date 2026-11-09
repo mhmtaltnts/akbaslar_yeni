@@ -281,22 +281,25 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <SidebarContent collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
       </aside>
 
-      {/* Mobil üst çubuk */}
-      <header className="bg-background/80 sticky top-0 z-20 flex h-14 items-center gap-3 border-b px-4 backdrop-blur lg:hidden">
+      {/* Mobil üst çubuk. Düz arka plan: bulanık (backdrop-blur) çubuk, üstüne
+          çekmece açılırken iPhone Safari'de titriyordu. */}
+      <header className="bg-background sticky top-0 z-20 flex h-14 items-center gap-3 border-b px-4 lg:hidden">
         <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label="Menüyü aç">
           <Menu />
         </Button>
         <Brand name={parkName ?? "Tır Parkı"} className="min-w-0 text-sm" />
       </header>
 
-      {/* Mobil çekmece */}
+      {/* Mobil çekmece. Animasyonsuz: iPhone Safari animasyonlu eklenen perdeyi
+          önce bir kare tam görünür çizip sonra soldurmaya başlıyor, menü
+          açılırken "göz kırpma" oluyordu. */}
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
-            className="animate-in fade-in absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/50"
             onClick={() => setOpen(false)}
           />
-          <aside className="bg-sidebar animate-in slide-in-from-left absolute inset-y-0 left-0 w-72 shadow-xl duration-200">
+          <aside className="bg-sidebar absolute inset-y-0 left-0 w-72 shadow-xl">
             <Button
               variant="ghost"
               size="icon"
