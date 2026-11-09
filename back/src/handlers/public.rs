@@ -1,11 +1,12 @@
 use axum::{
     extract::{Path, State},
+    http::HeaderMap,
     Json,
 };
 use serde::Serialize;
 use uuid::Uuid;
 
-use crate::{error::AppError, models::PublicNote, state::SharedState};
+use crate::{error::AppError, models::PublicNote, site, state::SharedState};
 
 #[derive(Serialize, sqlx::FromRow)]
 pub struct PublicPark {
@@ -26,6 +27,26 @@ pub async fn get_public_parks(
     .await?;
 
     Ok(Json(parks))
+}
+
+// @route GET /public/site
+// Sitenin açıldığı alan adının otoparkı (yoksa null): misafir ana sayfası
+// şifresiz olarak bu otoparkı gösterir.
+pub async fn get_public_site(
+    State(state): State<SharedState>,
+    headers: HeaderMap,
+) -> Result<Json<Option<PublicPark>>, AppError> {
+    let Some(host) = site::request_host(&headers) else {
+        return Ok(Json(None));
+    };
+    let park: Option<PublicPark> = sqlx::query_as(
+        "SELECT name, slug, address FROM tenants WHERE domain = ?1 AND active",
+    )
+    .bind(host)
+    .fetch_optional(&state.db)
+    .await?;
+
+    Ok(Json(park))
 }
 
 // @route GET /public/parks/{slug}/notes

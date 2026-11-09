@@ -10,5 +10,7 @@ pub struct Tenant {
     pub name: String,
     pub slug: String,
     pub address: Option<String>,
+    // Otoparkın sitesinin alan adı (bkz. migration 0003, site.rs).
+    pub domain: Option<String>,
     pub active: bool,
 }

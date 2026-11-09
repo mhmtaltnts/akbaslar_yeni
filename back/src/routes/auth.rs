@@ -22,6 +22,7 @@ pub fn auth_routes(state: SharedState) -> Router<SharedState> {
                 login_rate_limiter,
             )),
         )
+        .route("/me", get(handlers::me))
         .route("/refresh", get(handlers::refresh))
         .route("/logout", post(handlers::logout))
 }

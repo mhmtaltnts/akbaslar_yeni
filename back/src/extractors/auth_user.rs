@@ -3,7 +3,7 @@ use serde::Serialize;
 use sqlx::SqlitePool;
 use uuid::Uuid;
 
-use crate::{error::AppError, jwt, roles, state::SharedState};
+use crate::{error::AppError, jwt, roles, site, state::SharedState};
 
 // middleware/verifyJWT.js'nin karşılığı -- ama bir "middleware" DEĞİL, bir
 // "extractor". Node'da verifyJWT, router'a `router.use(verifyJWT)` ile
@@ -29,8 +29,9 @@ pub struct AuthUser {
     pub roles: Vec<String>,
     // İsteğin üzerinde çalıştığı otopark. Otoparka ait veriye dokunan HER
     // sorgu `WHERE tenant_id = ?n` ile bunu kullanmak zorunda. Normalde
-    // kullanıcının kendi otoparkı; SüperAdmin `X-Park-Id` başlığıyla başka
-    // bir otopark seçebilir (bkz. `from_request_parts`).
+    // kullanıcının kendi otoparkı; site başka bir otoparkın alan adından
+    // açıldıysa ve kullanıcı orada çalışmaya yetkiliyse o otopark (bkz.
+    // site.rs). SüperAdmin ayrıca `X-Park-Id` başlığıyla seçebilir.
     pub tenant_id: Uuid,
     // Kullanıcının kayıtlı olduğu otopark (token'dan). SüperAdmin başka bir
     // park seçmiş olsa bile değişmez.
@@ -83,6 +84,23 @@ impl AuthUser {
 
     pub fn is_officer(&self) -> bool {
         roles::is_officer(&self.roles)
+    }
+
+    // Kendi otoparkı dışındaki bir otoparkta çalışabilir mi? SüperAdmin her
+    // yerde; diğer personel sadece SüperAdmin'in `officer_parks` ile izin
+    // verdiği otoparklarda. İzin token'a değil DB'ye bakılarak okunur:
+    // SüperAdmin'in değişikliği anında geçerli olur.
+    async fn can_work_in(&self, db: &SqlitePool, park: Uuid) -> Result<bool, AppError> {
+        if park == self.home_tenant_id || self.is_super_admin() {
+            return Ok(true);
+        }
+        let granted: Option<i64> =
+            sqlx::query_scalar("SELECT 1 FROM officer_parks WHERE user_id = ?1 AND tenant_id = ?2")
+                .bind(self.id)
+                .bind(park)
+                .fetch_optional(db)
+                .await?;
+        Ok(granted.is_some())
     }
 
     // Gümrük memuru sadece araç listesini görür ve gümrük bilgisi girer:
@@ -163,6 +181,7 @@ impl FromRequestParts<SharedState> for AuthUser {
         // Diğer roller için başlık YOK SAYILIR -- Kurucu/Yönetici/Çalışan
         // her zaman token'daki kendi otoparkıyla sınırlı.
         let requested = parts.headers.get(PARK_HEADER).and_then(|v| v.to_str().ok());
+        let park_selected = requested.is_some() && user.is_super_admin();
         if let (Some(raw), true) = (requested, user.is_super_admin()) {
             let park_id = Uuid::parse_str(raw.trim())
                 .map_err(|_| AppError::BadRequest("Seçilen otopark geçersiz".to_string()))?;
@@ -172,6 +191,18 @@ impl FromRequestParts<SharedState> for AuthUser {
                 .await?;
             user.tenant_id = exists
                 .ok_or_else(|| AppError::BadRequest("Seçilen otopark bulunamadı".to_string()))?;
+        }
+
+        // Alan adına göre otopark (bkz. site.rs): kullanıcı orada çalışmaya
+        // yetkiliyse o otopark, değilse kendi otoparkı. SüperAdmin'in açık
+        // seçimi (`X-Park-Id`) önceliklidir. Memurlar izinli otoparkların
+        // HEPSİNİ birlikte gördüğü için (`park_ids`) alan adından etkilenmez.
+        if !park_selected && !user.is_officer() {
+            if let Some(site) = site::tenant_for_request(&state.db, &parts.headers).await? {
+                if site != user.home_tenant_id && user.can_work_in(&state.db, site).await? {
+                    user.tenant_id = site;
+                }
+            }
         }
 
         Ok(user)

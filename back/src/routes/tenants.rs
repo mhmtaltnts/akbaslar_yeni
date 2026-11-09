@@ -14,4 +14,5 @@ pub fn tenant_routes() -> Router<SharedState> {
         "/officers",
         get(handlers::get_officers).put(handlers::set_officer_parks),
     )
+    .route("/staff", get(handlers::get_staff))
 }

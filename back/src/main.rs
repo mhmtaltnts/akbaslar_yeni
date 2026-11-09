@@ -10,6 +10,7 @@ mod models;
 mod response;
 mod roles;
 mod routes;
+mod site;
 mod state;
 
 use std::{net::SocketAddr, sync::Arc};

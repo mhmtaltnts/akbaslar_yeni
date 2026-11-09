@@ -196,9 +196,11 @@ def main() -> None:
     con.execute("PRAGMA foreign_keys = ON")
     if not con.execute("SELECT 1 FROM sqlite_master WHERE name = 'officer_parks'").fetchone():
         sys.exit(f"{args.sqlite}: şema yok. Önce backend'i bu dosyayla bir kez çalıştırın.")
-    # Otopark adresleri Mongo'da yok: SQLite'ta aynı koda (slug) sahip
-    # otoparkın adresi varsa korunur.
+    # Otopark adresleri ve alan adları Mongo'da yok: SQLite'ta aynı koda
+    # (slug) sahip otoparkınki varsa korunur (alan adı: migration 0003).
     addresses = dict(con.execute("SELECT slug, address FROM tenants").fetchall())
+    has_domain = any(r[1] == "domain" for r in con.execute("PRAGMA table_info(tenants)"))
+    domains = dict(con.execute("SELECT slug, domain FROM tenants").fetchall()) if has_domain else {}
     try:
         with con:
             for table in ("officer_parks", "notes", "users", "tenants"):
@@ -207,6 +209,11 @@ def main() -> None:
                 "INSERT INTO tenants (id, name, slug, address) VALUES (?, ?, ?, ?)",
                 [(tid.bytes, name, slug, addresses.get(slug)) for tid, slug, name in tenants],
             )
+            if has_domain:
+                con.executemany(
+                    "UPDATE tenants SET domain = ? WHERE slug = ?",
+                    [(domains.get(slug), slug) for _, slug, _ in tenants],
+                )
             con.executemany(
                 "INSERT INTO users (id, tenant_id, fullname, username, username_key, password, roles, active)"
                 " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

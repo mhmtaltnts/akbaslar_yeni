@@ -232,3 +232,31 @@ pub async fn logout(State(state): State<SharedState>, jar: CookieJar) -> Respons
 
     (jar, Json(MessageBody::new("Cookie cleared"))).into_response()
 }
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurrentPark {
+    tenant_id: Uuid,
+    tenant_name: String,
+    // Kullanıcının kayıtlı olduğu otoparkta değil, sitenin alan adı (veya
+    // SüperAdmin seçimi) nedeniyle başka bir otoparkta mı çalışıyor.
+    is_home: bool,
+}
+
+// @route GET /auth/me
+// Bu istekte üzerinde çalışılan otopark (alan adı kuralı uygulanmış hali,
+// bkz. extractors::auth_user). Arayüz başlıkta bunu gösterir.
+pub async fn me(
+    user: crate::extractors::AuthUser,
+    State(state): State<SharedState>,
+) -> Result<Json<CurrentPark>, AppError> {
+    let tenant_name: String = sqlx::query_scalar("SELECT name FROM tenants WHERE id = ?1")
+        .bind(user.tenant_id)
+        .fetch_one(&state.db)
+        .await?;
+    Ok(Json(CurrentPark {
+        tenant_id: user.tenant_id,
+        tenant_name,
+        is_home: user.tenant_id == user.home_tenant_id,
+    }))
+}

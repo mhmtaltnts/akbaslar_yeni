@@ -11,7 +11,7 @@ use crate::{
     extractors::AuthUser,
     models::{username_key, Tenant},
     response::MessageBody,
-    roles,
+    roles, site,
     state::SharedState,
 };
 
@@ -30,6 +30,38 @@ fn normalize_slug(slug: &str) -> Result<String, AppError> {
     }
 }
 
+// Otoparkın alan adı: "https://www.Ornek.com/" -> "ornek.com". Boş -> None.
+fn normalize_domain(raw: &str) -> Result<Option<String>, AppError> {
+    let raw = raw.trim();
+    let raw = raw.strip_prefix("https://").or_else(|| raw.strip_prefix("http://")).unwrap_or(raw);
+    let raw = raw.trim_end_matches('/');
+    if raw.is_empty() {
+        return Ok(None);
+    }
+    let domain = site::normalize_host(raw).unwrap_or_default();
+    let valid = domain.len() <= 253
+        && domain.contains('.')
+        && domain.split('.').all(|label| {
+            !label.is_empty()
+                && !label.starts_with('-')
+                && !label.ends_with('-')
+                && label.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        });
+    if valid {
+        Ok(Some(domain))
+    } else {
+        Err(AppError::BadRequest("Alan adı geçersiz (örnek: otoparkim.com)".to_string()))
+    }
+}
+
+// Alan adı başka bir otoparka ait mi?
+async fn domain_owner(db: &sqlx::SqlitePool, domain: &str) -> Result<Option<Uuid>, AppError> {
+    Ok(sqlx::query_scalar("SELECT id FROM tenants WHERE domain = ?1")
+        .bind(domain)
+        .fetch_optional(db)
+        .await?)
+}
+
 // @route GET /tenants  (SüperAdmin)
 pub async fn get_all_tenants(
     user: AuthUser,
@@ -38,7 +70,7 @@ pub async fn get_all_tenants(
     user.require_super_admin()?;
 
     let tenants: Vec<Tenant> = sqlx::query_as(
-        "SELECT id, name, slug, address, active FROM tenants ORDER BY created_at",
+        "SELECT id, name, slug, address, domain, active FROM tenants ORDER BY created_at",
     )
     .fetch_all(&state.db)
     .await?;
@@ -58,6 +90,8 @@ pub struct CreateTenantPayload {
     pub name: String,
     pub slug: String,
     pub address: Option<String>,
+    #[serde(default)]
+    pub domain: Option<String>,
     // Yeni otoparkın ilk kullanıcısı ("Kurucu" rolüyle). Bu olmadan yeni
     // otoparka kimse giriş yapıp personel ekleyemezdi.
     pub admin: AdminPayload,
@@ -92,6 +126,13 @@ pub async fn create_tenant(
         return Err(AppError::Conflict("Bu otopark kodu kullanılıyor".to_string()));
     }
 
+    let domain = normalize_domain(payload.domain.as_deref().unwrap_or(""))?;
+    if let Some(d) = &domain {
+        if domain_owner(&state.db, d).await?.is_some() {
+            return Err(AppError::Conflict("Bu alan adı başka bir otoparkta kullanılıyor".to_string()));
+        }
+    }
+
     let username_taken: Option<Uuid> =
         sqlx::query_scalar("SELECT id FROM users WHERE username_key = ?1")
             .bind(username_key(admin.username.trim()))
@@ -109,11 +150,12 @@ pub async fn create_tenant(
     let mut tx = state.db.begin().await?;
 
     let tenant_id = Uuid::new_v4();
-    sqlx::query("INSERT INTO tenants (id, name, slug, address) VALUES (?1, ?2, ?3, ?4)")
+    sqlx::query("INSERT INTO tenants (id, name, slug, address, domain) VALUES (?1, ?2, ?3, ?4, ?5)")
     .bind(tenant_id)
     .bind(payload.name.trim())
     .bind(&slug)
     .bind(payload.address.as_deref().map(str::trim).filter(|a| !a.is_empty()))
+    .bind(&domain)
     .execute(&mut *tx)
     .await?;
 
@@ -145,6 +187,10 @@ pub struct UpdateTenantPayload {
     pub name: String,
     pub slug: String,
     pub address: Option<String>,
+    // Gönderilmezse (null) DEĞİŞMEZ, boş metin gönderilirse kaldırılır: eski
+    // bir istemci alanı göndermediği için alan adını yanlışlıkla silmesin.
+    #[serde(default)]
+    pub domain: Option<String>,
     pub active: bool,
 }
 
@@ -179,14 +225,35 @@ pub async fn update_tenant(
         return Err(AppError::Conflict("Bu otopark kodu kullanılıyor".to_string()));
     }
 
+    // Tüm kontroller yazmadan ÖNCE: herhangi biri başarısız olursa otopark
+    // yarım güncellenmiş kalmasın.
+    let domain_change = match payload.domain.as_deref() {
+        None => None,
+        Some(raw) => {
+            let domain = normalize_domain(raw)?;
+            if let Some(d) = &domain {
+                if domain_owner(&state.db, d).await?.is_some_and(|id| id != payload.id) {
+                    return Err(AppError::Conflict(
+                        "Bu alan adı başka bir otoparkta kullanılıyor".to_string(),
+                    ));
+                }
+            }
+            Some(domain)
+        }
+    };
+
     let result = sqlx::query(
-        "UPDATE tenants SET name = ?1, slug = ?2, address = ?3, active = ?4 WHERE id = ?5",
+        "UPDATE tenants SET name = ?1, slug = ?2, address = ?3, active = ?4,
+                domain = CASE WHEN ?6 THEN ?7 ELSE domain END
+         WHERE id = ?5",
     )
     .bind(payload.name.trim())
     .bind(&slug)
     .bind(payload.address.as_deref().map(str::trim).filter(|a| !a.is_empty()))
     .bind(payload.active)
     .bind(payload.id)
+    .bind(domain_change.is_some())
+    .bind(domain_change.flatten())
     .execute(&state.db)
     .await?;
 
@@ -222,24 +289,18 @@ pub struct Officer {
     park_ids: Vec<Uuid>,
 }
 
-// @route GET /tenants/officers  (SüperAdmin)
-// Tüm otoparklardaki gümrük memurları ve izinli oldukları otoparklar.
-pub async fn get_officers(
-    user: AuthUser,
-    State(state): State<SharedState>,
-) -> Result<Json<Vec<Officer>>, AppError> {
-    user.require_super_admin()?;
-
-    // `roles` JSON dizisi: SQLite'ta `= ANY(dizi)` yerine `json_each` ile
-    // dizinin elemanlarını satır gibi tarıyoruz.
+// Kullanıcılar ve SüperAdmin'in onlara verdiği ek otopark izinleri
+// (`officer_parks`). `filter` hangi kullanıcıların listeleneceğini seçer.
+async fn park_members(
+    state: &SharedState,
+    filter: impl Fn(&[String]) -> bool,
+) -> Result<Vec<Officer>, AppError> {
     let rows: Vec<OfficerRow> = sqlx::query_as(
         "SELECT u.id, u.fullname, u.username, u.roles, u.tenant_id, t.name AS tenant_name
          FROM users u
          JOIN tenants t ON t.id = u.tenant_id
-         WHERE EXISTS (SELECT 1 FROM json_each(u.roles) WHERE value = ?1)
-         ORDER BY u.username",
+         ORDER BY t.name, u.username",
     )
-    .bind(roles::OFFICER)
     .fetch_all(&state.db)
     .await?;
 
@@ -253,11 +314,9 @@ pub async fn get_officers(
         park_ids.entry(user_id).or_default().push(tenant_id);
     }
 
-    // Memur rolüyle birlikte Kurucu/Yönetici olanlar zaten kısıtsız; onları
-    // listelemiyoruz (bkz. `roles::is_officer`).
-    let officers = rows
+    Ok(rows
         .into_iter()
-        .filter(|r| roles::is_officer(&r.roles))
+        .filter(|r| filter(&r.roles))
         .map(|r| Officer {
             id: r.id,
             fullname: r.fullname,
@@ -266,9 +325,35 @@ pub async fn get_officers(
             home_park_name: r.tenant_name,
             park_ids: park_ids.remove(&r.id).unwrap_or_default(),
         })
-        .collect();
+        .collect())
+}
 
-    Ok(Json(officers))
+// @route GET /tenants/officers  (SüperAdmin)
+// Gümrük memurları: izinli oldukları otoparkların araçlarını BİRLİKTE görür.
+// Memur rolüyle birlikte Kurucu/Yönetici olanlar zaten kısıtsız; onları
+// listelemiyoruz (bkz. `roles::is_officer`).
+pub async fn get_officers(
+    user: AuthUser,
+    State(state): State<SharedState>,
+) -> Result<Json<Vec<Officer>>, AppError> {
+    user.require_super_admin()?;
+    Ok(Json(park_members(&state, roles::is_officer).await?))
+}
+
+// @route GET /tenants/staff  (SüperAdmin)
+// Memur ve SüperAdmin dışındaki personel. İzin verilen otoparkın alan
+// adından girdiğinde o otoparkta çalışır (bkz. extractors::auth_user).
+pub async fn get_staff(
+    user: AuthUser,
+    State(state): State<SharedState>,
+) -> Result<Json<Vec<Officer>>, AppError> {
+    user.require_super_admin()?;
+    Ok(Json(
+        park_members(&state, |r| {
+            !roles::is_officer(r) && !r.iter().any(|x| x == roles::SUPER_ADMIN)
+        })
+        .await?,
+    ))
 }
 
 #[derive(Deserialize)]
@@ -279,7 +364,8 @@ pub struct OfficerParksPayload {
 }
 
 // @route PUT /tenants/officers  (SüperAdmin)
-// Memurun ek otopark izinlerini verilen listeyle DEĞİŞTİRİR.
+// Kullanıcının (memur veya personel) ek otopark izinlerini verilen listeyle
+// DEĞİŞTİRİR.
 pub async fn set_officer_parks(
     user: AuthUser,
     State(state): State<SharedState>,
@@ -294,8 +380,10 @@ pub async fn set_officer_parks(
             .await?;
     let (username, SqlJson(target_roles), home_park) =
         target.ok_or_else(|| AppError::BadRequest("Kullanıcı bulunamadı".to_string()))?;
-    if !roles::is_officer(&target_roles) {
-        return Err(AppError::BadRequest("Kullanıcı gümrük memuru değil".to_string()));
+    if target_roles.iter().any(|r| r == roles::SUPER_ADMIN) {
+        return Err(AppError::BadRequest(
+            "SüperAdmin zaten tüm otoparklara erişebilir".to_string(),
+        ));
     }
 
     let mut tx = state.db.begin().await?;
@@ -325,7 +413,23 @@ pub async fn set_officer_parks(
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_slug;
+    use super::{normalize_domain, normalize_slug};
+
+    #[test]
+    fn alan_adi_temizlenir() {
+        assert_eq!(normalize_domain(" https://www.Akbaslartirparki.com/ ").unwrap().as_deref(), Some("akbaslartirparki.com"));
+        assert_eq!(normalize_domain("muallimkoykonak.com").unwrap().as_deref(), Some("muallimkoykonak.com"));
+        assert_eq!(normalize_domain("  ").unwrap(), None);
+    }
+
+    #[test]
+    fn gecersiz_alan_adi_reddedilir() {
+        assert!(normalize_domain("otopark").is_err());
+        assert!(normalize_domain("ötopark.com").is_err());
+        assert!(normalize_domain("-a.com").is_err());
+        assert!(normalize_domain("a..com").is_err());
+        assert!(normalize_domain("a.com/yol").is_err());
+    }
 
     #[test]
     fn slug_kucuk_harfe_cevrilir() {
