@@ -141,7 +141,7 @@ function OfficerCard({ officer, tenants }: { officer: Officer; tenants: Tenant[]
               title={isHome ? "Memurun kayıtlı olduğu otopark: her zaman erişebilir" : undefined}
               onClick={() => toggle(t.id)}
               className={cn(
-                "flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
+                "flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-left text-sm transition-colors",
                 on ? "border-primary bg-primary/5 text-foreground" : "text-muted-foreground hover:bg-muted/50",
                 isHome && "cursor-default opacity-80",
                 !t.active && "border-dashed",
@@ -155,8 +155,8 @@ function OfficerCard({ officer, tenants }: { officer: Officer; tenants: Tenant[]
               >
                 {on && <Check className="size-3" strokeWidth={3} />}
               </span>
-              {t.name}
-              {isHome && <span className="text-muted-foreground text-xs">(kendi otoparkı)</span>}
+              <span className="min-w-0 truncate">{t.name}</span>
+              {isHome && <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">(kendi otoparkı)</span>}
               {!t.active && <span className="text-destructive text-xs">(askıda)</span>}
             </button>
           );
@@ -199,7 +199,7 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
   return (
     <div
       className={cn(
-        "bg-card flex flex-col rounded-xl border shadow-xs",
+        "bg-card flex min-w-0 flex-col rounded-xl border shadow-xs",
         !tenant.active && "border-dashed opacity-80",
       )}
     >
@@ -223,7 +223,7 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="truncate font-semibold">{tenant.name}</h3>
+                <h3 className="min-w-0 font-semibold break-words">{tenant.name}</h3>
                 {isOwn && <Badge variant="outline">Sizin</Badge>}
               </div>
               <p className="text-muted-foreground font-mono text-xs">{tenant.slug}</p>
@@ -248,7 +248,8 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
         )}
       </div>
 
-      <div className="bg-muted/30 mt-auto flex items-center gap-2 border-t px-4 py-3">
+      {/* flex-wrap: dar telefonda üç düğme tek satıra sığmayıp kartı taşırıyordu. */}
+      <div className="bg-muted/30 mt-auto flex flex-wrap items-center gap-2 border-t px-4 py-3">
         {editing ? (
           <>
             <Button size="sm" onClick={() => save()} disabled={isLoading}>
