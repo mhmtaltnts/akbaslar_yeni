@@ -25,6 +25,9 @@ export default function PlateScanner({ title, onResult, onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<"loading" | "live" | "photo" | "error">("loading");
   const [message, setMessage] = useState("Okuma modeli hazırlanıyor…");
+  // Yükleme hatasının teknik ayrıntısı: telefonda konsol yok, ekran görüntüsü
+  // yeterli olsun.
+  const [detail, setDetail] = useState<string | null>(null);
   const [reading, setReading] = useState<PlateReading | null>(null);
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   const [busy, setBusy] = useState(false);
@@ -52,10 +55,12 @@ export default function PlateScanner({ title, onResult, onClose }: Props) {
     (async () => {
       try {
         await loadPlateReader();
-      } catch {
+      } catch (err) {
+        console.error("Plaka okuma modeli yüklenemedi", err);
         if (!stopped) {
           setStatus("error");
           setMessage("Okuma modeli yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.");
+          setDetail(`${err instanceof Error ? err.message : String(err)} · ${navigator.userAgent}`);
         }
         return;
       }
@@ -170,6 +175,7 @@ export default function PlateScanner({ title, onResult, onClose }: Props) {
           <div className="flex size-full flex-col items-center justify-center gap-4 p-6 text-center">
             {status === "loading" && <Loader2 className="size-8 animate-spin" />}
             <p className="max-w-sm text-sm text-white/80">{message}</p>
+            {detail && <p className="max-w-sm font-mono text-[11px] break-all text-white/40">{detail}</p>}
             {status === "photo" && (
               <>
                 <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onPhoto} />

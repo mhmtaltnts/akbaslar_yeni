@@ -22,6 +22,7 @@
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.564.0",
     "onnxruntime-web": "1.22.0",
+    "onnxruntime-web-legacy": "npm:onnxruntime-web@1.18.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

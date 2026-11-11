@@ -8,9 +8,15 @@
 // 2) Okuyucu (CCT-XS v2 global): kırpılan plakadaki karakterler + ülke.
 // Ön/son işlem, modellerin Python kütüphanelerindeki (open-image-models,
 // fast-plate-ocr) kodun birebir karşılığı; bkz. models/README.md.
-import * as ort from "onnxruntime-web/wasm";
+//
+// İki motor: WebAssembly SIMD destekleyen tarayıcılarda onnxruntime-web 1.22;
+// desteklemeyenlerde (örn. iOS 16.4 öncesi Safari/iPhone Chrome; iOS 15'te
+// kalan eski iPhone'lar) SIMD'siz 1.18 "wasm-core". Motor ve WASM'ı sadece
+// gereken cihaz indirir (dinamik import).
+import type * as OrtTypes from "onnxruntime-web/wasm";
 import loaderSource from "../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs?raw";
 import wasmUrl from "../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm?url";
+import legacyWasmUrl from "../../../node_modules/onnxruntime-web-legacy/dist/ort-wasm.wasm?url";
 import detectorUrl from "./models/plate-detector-yolo-v9-t-384.onnx?url";
 import ocrUrl from "./models/plate-ocr-cct-xs-v2-global.onnx?url";
 
@@ -51,13 +57,26 @@ export type PlateReading = {
   box: PlateBox; // kaynaktaki konumu (çerçeve çizmek için)
 };
 
-type Sessions = { detector: ort.InferenceSession; ocr: ort.InferenceSession };
-let loading: Promise<Sessions> | null = null;
+type Ort = typeof OrtTypes;
+type Session = OrtTypes.InferenceSession;
+type Runtime = { ort: Ort; detector: Session; ocr: Session; engine: "simd" | "legacy" };
+let loading: Promise<Runtime> | null = null;
 
-// Modelleri bir kez yükler (ilk taramada). Sonraki çağrılar aynı oturumları
-// kullanır. Yükleme başarısız olursa bir sonraki denemede tekrar denenir.
-export function loadPlateReader(): Promise<Sessions> {
-  loading ??= (async () => {
+// WebAssembly SIMD desteği (wasm-feature-detect'in sınama modülü).
+function hasWasmSimd() {
+  try {
+    return WebAssembly.validate(
+      new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11]),
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function loadOrt(): Promise<{ ort: Ort; engine: Runtime["engine"] }> {
+  if (typeof WebAssembly !== "object") throw new Error("Bu tarayıcı WebAssembly desteklemiyor");
+  if (hasWasmSimd()) {
+    const ort = await import("onnxruntime-web/wasm");
     // WASM: hash'li adla kendi sunucumuzdan. Motorun yükleyicisi (.mjs) ise
     // ayrı dosya olarak VERİLMEZ: nginx'in varsayılan mime.types'ı .mjs'i
     // application/octet-stream gönderiyor ve tarayıcı modülü reddediyor
@@ -68,15 +87,32 @@ export function loadPlateReader(): Promise<Sessions> {
     // Tek iş parçacığı: çoklu iş parçacığı sayfanın "cross-origin isolated"
     // olmasını ve yükleyicinin gerçek bir adresten gelmesini ister.
     ort.env.wasm.numThreads = 1;
-    const opts: ort.InferenceSession.SessionOptions = {
+    return { ort, engine: "simd" };
+  }
+  // SIMD'siz eski motor: yükleyicisi JS'e gömülü, tek WASM dosyası. Daha yavaş
+  // ama eski telefonlarda çalışır. API aynı (1.18 -> 1.22 tipleri uyumlu).
+  // @ts-ignore -- 1.18'in types.d.ts'i modül değil; API 1.22 ile aynı, Ort olarak kullanılıyor.
+  const ort = (await import("onnxruntime-web-legacy/wasm-core")) as unknown as Ort;
+  ort.env.wasm.simd = false;
+  ort.env.wasm.numThreads = 1;
+  ort.env.wasm.proxy = false;
+  ort.env.wasm.wasmPaths = { "ort-wasm.wasm": legacyWasmUrl } as unknown as Ort["env"]["wasm"]["wasmPaths"];
+  return { ort, engine: "legacy" };
+}
+
+// Modelleri bir kez yükler (ilk taramada). Sonraki çağrılar aynı oturumları
+// kullanır. Yükleme başarısız olursa bir sonraki denemede tekrar denenir.
+export function loadPlateReader(): Promise<Runtime> {
+  loading ??= (async () => {
+    const { ort, engine } = await loadOrt();
+    const opts: OrtTypes.InferenceSession.SessionOptions = {
       executionProviders: ["wasm"],
       graphOptimizationLevel: "all",
     };
-    const [detector, ocr] = await Promise.all([
-      ort.InferenceSession.create(detectorUrl, opts),
-      ort.InferenceSession.create(ocrUrl, opts),
-    ]);
-    return { detector, ocr };
+    // Sırayla: eski telefonlarda iki modeli aynı anda açmak belleği zorlar.
+    const detector = await ort.InferenceSession.create(detectorUrl, opts);
+    const ocr = await ort.InferenceSession.create(ocrUrl, opts);
+    return { ort, detector, ocr, engine };
   })().catch((err) => {
     loading = null;
     throw err;
@@ -100,14 +136,15 @@ export async function readPlate(
   srcW: number,
   srcH: number,
 ): Promise<PlateReading | null> {
-  const { detector, ocr } = await loadPlateReader();
-  const box = await detect(detector, source, srcW, srcH);
+  const rt = await loadPlateReader();
+  const box = await detect(rt.ort, rt.detector, source, srcW, srcH);
   if (!box) return null;
-  return { ...(await recognize(ocr, source, box)), box };
+  return { ...(await recognize(rt.ort, rt.ocr, source, box)), box };
 }
 
 async function detect(
-  session: ort.InferenceSession,
+  ort: Ort,
+  session: Session,
   source: CanvasImageSource,
   srcW: number,
   srcH: number,
@@ -159,7 +196,8 @@ async function detect(
 }
 
 async function recognize(
-  session: ort.InferenceSession,
+  ort: Ort,
+  session: Session,
   source: CanvasImageSource,
   box: PlateBox,
 ): Promise<Omit<PlateReading, "box">> {
