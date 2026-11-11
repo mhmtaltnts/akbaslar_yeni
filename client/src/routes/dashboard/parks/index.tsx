@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute } from "@tanstack/react-router";
-import { BadgeCheck, Building2, Check, ExternalLink, Globe, Loader2, MapPin, Pencil, ShieldX, Users } from "lucide-react";
+import { BadgeCheck, Building2, Check, ExternalLink, Globe, Loader2, MapPin, Pencil, ScanLine, ShieldX, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -195,6 +195,53 @@ function OfficerCard({ officer, tenants }: { officer: Officer; tenants: Tenant[]
   );
 }
 
+// Telefonda plaka okuma (deneme): açıkken bu otoparkın araç giriş/çıkış
+// formlarında plaka alanlarının yanında kamera düğmesi çıkar. Okuma
+// telefonda yapılır, görüntü sunucuya gelmez.
+function PlateScanToggle({ tenant }: { tenant: Tenant }) {
+  const updateTenant = useUpdateTenant();
+  const on = tenant.plateScan;
+  const toggle = () =>
+    updateTenant.mutate(
+      // Ad/kod/adres kayıtlı halleriyle; alan adı gönderilmez (değişmez).
+      { id: tenant.id, name: tenant.name, slug: tenant.slug, address: tenant.address ?? "", plateScan: !on },
+      {
+        onSuccess: () => toast.success(`${tenant.name}: plaka okuma ${on ? "kapatıldı" : "açıldı"}`),
+        onError: (err) => toast.error(apiErrorMessage(err)),
+      },
+    );
+  return (
+    <div className="flex items-center gap-3 border-t px-5 py-3">
+      <ScanLine className="text-muted-foreground size-4 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">
+          Telefonda plaka okuma <span className="text-muted-foreground text-xs font-normal">(deneme)</span>
+        </p>
+        <p className="text-muted-foreground text-xs">Araç giriş/çıkışında plaka kamerayla okunur; görüntü kaydedilmez.</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label="Telefonda plaka okuma"
+        disabled={updateTenant.isPending}
+        onClick={toggle}
+        className={cn(
+          "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60",
+          on ? "bg-primary" : "bg-input",
+        )}
+      >
+        <span
+          className={cn(
+            "bg-background inline-block size-5 rounded-full shadow transition-transform",
+            on ? "translate-x-5" : "translate-x-0.5",
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
 function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(tenant.name);
@@ -270,6 +317,8 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
           )}
         </div>
       </div>
+
+      {!editing && <PlateScanToggle tenant={tenant} />}
 
       {/* flex-wrap: dar telefonda düğmeler tek satıra sığmayıp kartı taşırıyordu. */}
       <div className="bg-muted/30 mt-auto flex flex-wrap items-center gap-2 border-t px-4 py-3">

@@ -18,6 +18,8 @@ function useTenantMutation<V>(fn: (v: V) => Promise<Message>) {
     mutationFn: fn,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["tenants"] });
+      // Otopark ayarları (örn. plaka okuma) /auth/me ile de geliyor.
+      qc.invalidateQueries({ queryKey: ["me"] });
     },
   });
 }
@@ -61,6 +63,8 @@ export type TenantUpdate = {
   slug: string;
   address?: string | null;
   domain?: string;
+  // Gönderilmezse değişmez.
+  plateScan?: boolean;
 };
 export const useUpdateTenant = () =>
   useTenantMutation((body: TenantUpdate) => apiFetch<Message>("/tenants", { method: "PATCH", body }));

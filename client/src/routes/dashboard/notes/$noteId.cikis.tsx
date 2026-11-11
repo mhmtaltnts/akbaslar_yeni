@@ -4,6 +4,7 @@ import { FormCard, plateInputClass } from "@/components/app/form-card";
 import { NoteGate } from "@/components/app/note-gate";
 import { NoteSummary } from "@/components/app/note-summary";
 import { Field } from "@/components/app/page";
+import { PlateScanButton } from "@/components/app/plate-scan-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import useTitle from "@/utils/hooks/useTitle";
@@ -60,15 +61,18 @@ function CikisForm({ note }: { note: Note }) {
     >
       <NoteSummary note={note} />
       <Field label="Götüren çekici plakası *" htmlFor="goturen">
-        <Input
-          id="goturen"
-          className={plateInputClass}
-          placeholder="34 XYZ 456"
-          value={goturen}
-          onChange={(e) => setGoturen(e.target.value.toLocaleUpperCase("tr-TR"))}
-          autoFocus
-          required
-        />
+        <div className="flex gap-2">
+          <Input
+            id="goturen"
+            className={plateInputClass}
+            placeholder="34 XYZ 456"
+            value={goturen}
+            onChange={(e) => setGoturen(e.target.value.toLocaleUpperCase("tr-TR"))}
+            autoFocus
+            required
+          />
+          <PlateScanButton label="Götüren çekici plakası" onResult={setGoturen} />
+        </div>
       </Field>
     </FormCard>
   );

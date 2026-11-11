@@ -21,6 +21,9 @@ export default defineConfig({
     }),
     viteReact(),
   ],
+  // onnxruntime-web (telefonda plaka okuma) motor dosyalarını kendisi yükler;
+  // Vite'ın ön paketlemesi bu yolları bozuyor.
+  optimizeDeps: { exclude: ["onnxruntime-web"] },
   resolve: {
     alias: {
       "@": path.resolve(dirname(fileURLToPath(import.meta.url)), "./src"),

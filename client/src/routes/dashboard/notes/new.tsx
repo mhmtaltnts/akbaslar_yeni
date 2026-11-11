@@ -1,6 +1,7 @@
 import { useAddNote } from "@/api/notes";
 import { FormCard, plateInputClass } from "@/components/app/form-card";
 import { Field } from "@/components/app/page";
+import { PlateScanButton } from "@/components/app/plate-scan-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import useTitle from "@/utils/hooks/useTitle";
@@ -53,25 +54,31 @@ function RouteComponent() {
     >
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Dorse plakası *" htmlFor="dorse">
-          <Input
-            id="dorse"
-            className={plateInputClass}
-            placeholder="34 ABC 123"
-            value={dorse}
-            onChange={(e) => setDorse(e.target.value.toLocaleUpperCase("tr-TR"))}
-            autoFocus
-            required
-          />
+          <div className="flex gap-2">
+            <Input
+              id="dorse"
+              className={plateInputClass}
+              placeholder="34 ABC 123"
+              value={dorse}
+              onChange={(e) => setDorse(e.target.value.toLocaleUpperCase("tr-TR"))}
+              autoFocus
+              required
+            />
+            <PlateScanButton label="Dorse plakası" onResult={setDorse} />
+          </div>
         </Field>
         <Field label="Getiren çekici plakası *" htmlFor="getiren">
-          <Input
-            id="getiren"
-            className={plateInputClass}
-            placeholder="34 XYZ 456"
-            value={getiren}
-            onChange={(e) => setGetiren(e.target.value.toLocaleUpperCase("tr-TR"))}
-            required
-          />
+          <div className="flex gap-2">
+            <Input
+              id="getiren"
+              className={plateInputClass}
+              placeholder="34 XYZ 456"
+              value={getiren}
+              onChange={(e) => setGetiren(e.target.value.toLocaleUpperCase("tr-TR"))}
+              required
+            />
+            <PlateScanButton label="Getiren çekici plakası" onResult={setGetiren} />
+          </div>
         </Field>
         <Field label="Firma" htmlFor="firma">
           <Input id="firma" value={firma} onChange={(e) => setFirma(e.target.value)} />

@@ -37,11 +37,13 @@ export type Tenant = {
   // Otoparkın sitesinin alan adı ("www." olmadan).
   domain?: string | null;
   active: boolean;
+  // Telefonda plaka okuma açık mı (deneme özelliği, SüperAdmin açar).
+  plateScan: boolean;
 };
 
 // GET /auth/me: bu istekte üzerinde çalışılan otopark (alan adı kuralı ve
 // SüperAdmin seçimi uygulanmış hali).
-export type CurrentPark = { tenantId: string; tenantName: string; isHome: boolean };
+export type CurrentPark = { tenantId: string; tenantName: string; isHome: boolean; plateScan?: boolean };
 
 // Gümrük memuru ve SüperAdmin'in ona verdiği ek otopark izinleri.
 export type Officer = {
