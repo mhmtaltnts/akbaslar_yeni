@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/format";
 import { ROLES } from "@/utils/config/roles";
+import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, UserPlus } from "lucide-react";
@@ -21,6 +22,7 @@ function RouteComponent() {
   const addUser = useAddUser();
   const { isPending: isLoading, isError, error } = addUser;
   const navigate = useNavigate();
+  const { isSuperAdmin } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [username, setUsername] = useState("");
@@ -71,7 +73,7 @@ function RouteComponent() {
         </Field>
       </div>
       <Field label="Roller *">
-        <RolePicker value={roles} onChange={setRoles} />
+        <RolePicker value={roles} onChange={setRoles} superAdmin={isSuperAdmin} />
       </Field>
     </FormCard>
   );

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { SUPER_ADMIN } from "@/utils/config/roles";
+import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Loader2, Save, UserX } from "lucide-react";
@@ -37,11 +38,19 @@ const EditUserForm = ({ user }: { user: User }) => {
   const updateUser = useUpdateUser();
   const { isPending: isLoading, isError, error } = updateUser;
   const navigate = useNavigate();
+  const { isSuperAdmin, username: me } = useAuth();
+  // Kendi SüperAdmin rolü kilitli (backend de reddeder): son SüperAdmin
+  // kendini yetkisiz bırakmasın.
+  const isSelf = user.username === me;
+  const lockedRoles = isSelf && user.roles.includes(SUPER_ADMIN) ? [SUPER_ADMIN] : [];
 
   const [username, setUsername] = useState(user.username);
   const [password, setPassword] = useState("");
-  // SüperAdmin rolü seçicide gösterilmez; backend zaten korur.
-  const [roles, setRoles] = useState<string[]>(user.roles.filter((r: string) => r !== SUPER_ADMIN));
+  // SüperAdmin rolü sadece SüperAdmin'e seçenek olarak görünür; Kurucu
+  // düzenlerken gönderilmez, backend mevcut SüperAdmin rolünü korur.
+  const [roles, setRoles] = useState<string[]>(
+    isSuperAdmin ? user.roles : user.roles.filter((r: string) => r !== SUPER_ADMIN),
+  );
   const [active, setActive] = useState<boolean>(user.active);
 
   const canSave = roles.length > 0 && Boolean(username) && !isLoading;
@@ -89,7 +98,7 @@ const EditUserForm = ({ user }: { user: User }) => {
             {active ? "Kullanıcı giriş yapabilir." : "Kullanıcı giriş yapamaz (onay bekliyor / pasif)."}
           </span>
         </span>
-        <Switch checked={active} onChange={setActive} />
+        <Switch checked={active} onChange={setActive} disabled={lockedRoles.length > 0} />
       </label>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -101,22 +110,25 @@ const EditUserForm = ({ user }: { user: User }) => {
         </Field>
       </div>
       <Field label="Roller *">
-        <RolePicker value={roles} onChange={setRoles} />
+        <RolePicker value={roles} onChange={setRoles} superAdmin={isSuperAdmin} locked={lockedRoles} />
       </Field>
     </FormCard>
   );
 };
 
-function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Switch({ checked, onChange, disabled = false }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
+      title={disabled ? "Kendi SüperAdmin hesabınızı pasif edemezsiniz" : undefined}
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
         checked ? "bg-primary" : "bg-input",
+        disabled && "opacity-60",
       )}
     >
       <span

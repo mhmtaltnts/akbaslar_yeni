@@ -7,8 +7,9 @@ export const ROLES = {
 
 export type Roles = (typeof ROLES)[keyof typeof ROLES][];
 
-// Otopark (tenant) yönetimi rolü. Bilerek ROLES içinde değil: kullanıcı
-// formlarındaki rol listesinde görünmesin, sadece backend'in verdiği bir rol.
+// Otopark (tenant) yönetimi rolü. Bilerek ROLES içinde değil: rol seçicide
+// sadece SüperAdmin'e gösterilir (bir SüperAdmin başkasını SüperAdmin
+// yapabilir; Kurucu bu rolü veremez, backend de engeller).
 export const SUPER_ADMIN = "SüperAdmin";
 
 // "Sadece memur" yetkisi: izinli otoparkların araçlarını görür, sadece gümrük
