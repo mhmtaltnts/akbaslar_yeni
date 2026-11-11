@@ -105,6 +105,8 @@ async fn main() {
         // Çoklu otopark: otopark yönetimi (SüperAdmin) ve giriş gerektirmeyen
         // otopark bazlı liste.
         .nest("/tenants", routes::tenant_routes())
+        // Otopark fotoğrafları (ana sayfa slaytı; Kurucu ekler/siler).
+        .nest("/photos", routes::photo_routes())
         .nest("/public", routes::public_routes())
         // `app.use("/", express.static(path.join(__dirname, "public")))`
         // karşılığı. Projede `public/` altında tek şey var: `css/style.css`
