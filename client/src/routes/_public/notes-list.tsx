@@ -88,7 +88,7 @@ function PublicNotesList() {
           <EmptyState icon={Building2} title="Otopark seçin" description="Araçları görmek için yukarıdan bir otopark seçin." />
         )}
         {isError && (
-          <EmptyState icon={Building2} title="Otopark bulunamadı" description="Bağlantıdaki otopark kodu geçersiz ya da otopark askıya alınmış." />
+          <EmptyState icon={Building2} title="Otopark bulunamadı" description="Bağlantıdaki otopark kodu geçersiz." />
         )}
         {isSuccess && notes.length === 0 && (
           <EmptyState icon={Truck} title="Parkta araç yok" description={current?.name} />

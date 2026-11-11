@@ -1,4 +1,4 @@
-import { officersQuery, staffQuery, tenantsQuery, useAddTenant, useSetOfficerParks, useUpdateTenant } from "@/api/tenants";
+import { officersQuery, staffQuery, tenantsQuery, useSetOfficerParks, useUpdateTenant } from "@/api/tenants";
 import type { Officer, Tenant } from "@/api/types";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ErrorAlert, Field, PageHeader, PageLoader } from "@/components/app/page";
@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import useAuth from "@/utils/hooks/useAuth";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute } from "@tanstack/react-router";
-import { BadgeCheck, Building2, Check, ExternalLink, Globe, Loader2, MapPin, Pencil, Plus, ShieldX, Users, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, ExternalLink, Globe, Loader2, MapPin, Pencil, ShieldX, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -23,7 +23,6 @@ export const Route = createFileRoute("/dashboard/parks/")({
 function ParksPage() {
   useTitle("Otoparklar");
   const { isSuperAdmin, tenantId } = useAuth();
-  const [creating, setCreating] = useState(false);
   const { data: tenants, isLoading, isError, error } = useQuery({
     ...tenantsQuery,
     enabled: isSuperAdmin,
@@ -37,17 +36,8 @@ function ParksPage() {
     <>
       <PageHeader
         title="Otoparklar"
-        description="Platformdaki tüm otopark işletmeleri"
-        actions={
-          !creating && (
-            <Button onClick={() => setCreating(true)}>
-              <Plus /> Yeni Otopark
-            </Button>
-          )
-        }
+        description="Platformdaki otopark işletmeleri"
       />
-
-      {creating && <NewTenantForm onClose={() => setCreating(false)} />}
 
       {isLoading && <PageLoader />}
       {isError && <ErrorAlert message={apiErrorMessage(error)} />}
@@ -175,7 +165,6 @@ function OfficerCard({ officer, tenants }: { officer: Officer; tenants: Tenant[]
                 "flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-left text-sm transition-colors",
                 on ? "border-primary bg-primary/5 text-foreground" : "text-muted-foreground hover:bg-muted/50",
                 isHome && "cursor-default opacity-80",
-                !t.active && "border-dashed",
               )}
             >
               <span
@@ -188,7 +177,6 @@ function OfficerCard({ officer, tenants }: { officer: Officer; tenants: Tenant[]
               </span>
               <span className="min-w-0 truncate">{t.name}</span>
               {isHome && <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap">(kendi otoparkı)</span>}
-              {!t.active && <span className="text-destructive text-xs">(askıda)</span>}
             </button>
           );
         })}
@@ -216,9 +204,9 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
   const updateTenant = useUpdateTenant();
   const isLoading = updateTenant.isPending;
 
-  const save = (changes: { active?: boolean } = {}) =>
+  const save = () =>
     updateTenant.mutate(
-      { id: tenant.id, name, slug, address, domain, active: tenant.active, ...changes },
+      { id: tenant.id, name, slug, address, domain },
       {
         onSuccess: (res) => {
           toast.success(res.message);
@@ -229,12 +217,7 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
     );
 
   return (
-    <div
-      className={cn(
-        "bg-card flex min-w-0 flex-col rounded-xl border shadow-xs",
-        !tenant.active && "border-dashed opacity-80",
-      )}
-    >
+    <div className="bg-card flex min-w-0 flex-col rounded-xl border shadow-xs">
       <div className="flex items-start gap-3 p-5">
         <div className="bg-primary/10 text-primary flex size-10 shrink-0 items-center justify-center rounded-lg">
           <Building2 className="size-5" />
@@ -286,20 +269,9 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
             </>
           )}
         </div>
-        {!editing && (
-          <Badge
-            className={
-              tenant.active
-                ? "bg-success/15 text-success"
-                : "bg-destructive/15 text-destructive"
-            }
-          >
-            {tenant.active ? "Aktif" : "Askıda"}
-          </Badge>
-        )}
       </div>
 
-      {/* flex-wrap: dar telefonda üç düğme tek satıra sığmayıp kartı taşırıyordu. */}
+      {/* flex-wrap: dar telefonda düğmeler tek satıra sığmayıp kartı taşırıyordu. */}
       <div className="bg-muted/30 mt-auto flex flex-wrap items-center gap-2 border-t px-4 py-3">
         {editing ? (
           <>
@@ -324,107 +296,9 @@ function TenantCard({ tenant, isOwn }: { tenant: Tenant; isOwn: boolean }) {
                 <ExternalLink /> Misafir sayfası
               </a>
             </Button>
-            {!isOwn && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className={cn("ml-auto", tenant.active ? "text-destructive hover:text-destructive" : "text-success")}
-                disabled={isLoading}
-                onClick={() => save({ active: !tenant.active })}
-              >
-                {tenant.active ? "Askıya Al" : "Aktif Et"}
-              </Button>
-            )}
           </>
         )}
       </div>
     </div>
-  );
-}
-
-const emptyForm = { name: "", slug: "", address: "", domain: "", fullname: "", username: "", password: "" };
-
-function NewTenantForm({ onClose }: { onClose: () => void }) {
-  const [form, setForm] = useState(emptyForm);
-  const addTenant = useAddTenant();
-  const { isPending: isLoading, error, isError } = addTenant;
-
-  const set = (key: keyof typeof emptyForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    addTenant.mutate(
-      {
-        name: form.name,
-        slug: form.slug,
-        address: form.address,
-        domain: form.domain,
-        admin: { fullname: form.fullname, username: form.username, password: form.password },
-      },
-      {
-        onSuccess: (res) => {
-          toast.success(res.message);
-          setForm(emptyForm);
-          onClose();
-        },
-      },
-    );
-  };
-
-  const input = (key: keyof typeof emptyForm, label: string, opts: { type?: string; mono?: boolean; required?: boolean; hint?: string } = {}) => (
-    <Field label={label} htmlFor={`park-${key}`} hint={opts.hint}>
-      <Input
-        id={`park-${key}`}
-        type={opts.type ?? "text"}
-        className={opts.mono ? "font-mono" : undefined}
-        autoComplete="off"
-        value={form[key]}
-        onChange={set(key)}
-        required={opts.required ?? true}
-      />
-    </Field>
-  );
-
-  return (
-    <form onSubmit={onSubmit} className="bg-card mb-6 overflow-hidden rounded-xl border shadow-xs">
-      <div className="flex items-center justify-between border-b px-6 py-4">
-        <div>
-          <h2 className="font-semibold">Yeni Otopark</h2>
-          <p className="text-muted-foreground text-sm">Otopark ve ilk kurucu kullanıcısı birlikte oluşturulur.</p>
-        </div>
-        <Button type="button" variant="ghost" size="icon-sm" onClick={onClose} aria-label="Kapat">
-          <X />
-        </Button>
-      </div>
-      <div className="grid gap-6 p-6 lg:grid-cols-2">
-        <div className="space-y-4">
-          <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Otopark</p>
-          {input("name", "Otopark adı")}
-          {input("slug", "Otopark kodu", { mono: true, hint: "Küçük harf, rakam ve tire. Kayıt ve misafir linkinde kullanılır." })}
-          {input("address", "Adres", { required: false })}
-          {input("domain", "Alan adı", { mono: true, required: false, hint: "Örn. otoparkim.com (www olmadan). Misafir sayfası ve personel girişi bu adresten." })}
-        </div>
-        <div className="space-y-4">
-          <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Kurucu kullanıcı</p>
-          {input("fullname", "Adı soyadı")}
-          {input("username", "Kullanıcı adı")}
-          {input("password", "Şifre", { type: "password" })}
-        </div>
-      </div>
-      {isError && (
-        <div className="px-6 pb-4">
-          <ErrorAlert message={apiErrorMessage(error)} />
-        </div>
-      )}
-      <div className="bg-muted/30 flex justify-end gap-2 border-t px-6 py-4">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Vazgeç
-        </Button>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? <Loader2 className="animate-spin" /> : <Plus />} Otopark Oluştur
-        </Button>
-      </div>
-    </form>
   );
 }

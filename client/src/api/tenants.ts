@@ -2,7 +2,8 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 import { apiFetch } from "@/lib/api";
 import { type Message, type Officer, type Tenant, withId } from "./types";
 
-// Otopark (tenant) yönetimi -- sadece SüperAdmin.
+// Otopark (tenant) yönetimi -- sadece SüperAdmin. Uygulama iki sabit
+// otoparklı: otopark oluşturma ve askıya alma yok, sadece düzenleme.
 export const tenantsQuery = queryOptions({
   queryKey: ["tenants"],
   queryFn: async () =>
@@ -20,16 +21,6 @@ function useTenantMutation<V>(fn: (v: V) => Promise<Message>) {
     },
   });
 }
-
-export type NewTenant = {
-  name: string;
-  slug: string;
-  address?: string;
-  domain?: string;
-  admin: { fullname: string; username: string; password: string };
-};
-export const useAddTenant = () =>
-  useTenantMutation((body: NewTenant) => apiFetch<Message>("/tenants", { method: "POST", body }));
 
 // Gümrük memurları ve izinli oldukları otoparklar -- sadece SüperAdmin.
 export const officersQuery = queryOptions({
@@ -70,7 +61,6 @@ export type TenantUpdate = {
   slug: string;
   address?: string | null;
   domain?: string;
-  active: boolean;
 };
 export const useUpdateTenant = () =>
   useTenantMutation((body: TenantUpdate) => apiFetch<Message>("/tenants", { method: "PATCH", body }));

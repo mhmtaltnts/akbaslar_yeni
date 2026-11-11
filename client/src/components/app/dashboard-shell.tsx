@@ -115,7 +115,6 @@ function ParkSwitcher() {
         {tenants?.map((t) => (
           <option key={t.id} value={t.id}>
             {t.name}
-            {t.active ? "" : " (askıda)"}
           </option>
         ))}
       </select>
