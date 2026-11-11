@@ -70,7 +70,7 @@ pub async fn get_all_tenants(
     user.require_super_admin()?;
 
     let tenants: Vec<Tenant> = sqlx::query_as(
-        "SELECT id, name, slug, address, domain, active FROM tenants ORDER BY created_at",
+        "SELECT id, name, slug, address, domain, active, plate_scan FROM tenants ORDER BY created_at",
     )
     .fetch_all(&state.db)
     .await?;
@@ -88,6 +88,10 @@ pub struct UpdateTenantPayload {
     // bir istemci alanı göndermediği için alan adını yanlışlıkla silmesin.
     #[serde(default)]
     pub domain: Option<String>,
+    // Telefonda plaka okuma. Gönderilmezse DEĞİŞMEZ. (Bu struct'ta
+    // rename_all yok; istemci camelCase gönderiyor.)
+    #[serde(default, rename = "plateScan")]
+    pub plate_scan: Option<bool>,
 }
 
 // @route PATCH /tenants  (SüperAdmin)
@@ -134,7 +138,8 @@ pub async fn update_tenant(
 
     let result = sqlx::query(
         "UPDATE tenants SET name = ?1, slug = ?2, address = ?3,
-                domain = CASE WHEN ?5 THEN ?6 ELSE domain END
+                domain = CASE WHEN ?5 THEN ?6 ELSE domain END,
+                plate_scan = COALESCE(?7, plate_scan)
          WHERE id = ?4",
     )
     .bind(payload.name.trim())
@@ -143,6 +148,7 @@ pub async fn update_tenant(
     .bind(payload.id)
     .bind(domain_change.is_some())
     .bind(domain_change.flatten())
+    .bind(payload.plate_scan)
     .execute(&state.db)
     .await?;
 

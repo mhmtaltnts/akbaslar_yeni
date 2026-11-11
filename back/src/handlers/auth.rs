@@ -241,6 +241,8 @@ pub struct CurrentPark {
     // Kullanıcının kayıtlı olduğu otoparkta değil, sitenin alan adı (veya
     // SüperAdmin seçimi) nedeniyle başka bir otoparkta mı çalışıyor.
     is_home: bool,
+    // Bu otoparkta telefonda plaka okuma açık mı (SüperAdmin ayarı).
+    plate_scan: bool,
 }
 
 // @route GET /auth/me
@@ -250,13 +252,15 @@ pub async fn me(
     user: crate::extractors::AuthUser,
     State(state): State<SharedState>,
 ) -> Result<Json<CurrentPark>, AppError> {
-    let tenant_name: String = sqlx::query_scalar("SELECT name FROM tenants WHERE id = ?1")
-        .bind(user.tenant_id)
-        .fetch_one(&state.db)
-        .await?;
+    let (tenant_name, plate_scan): (String, bool) =
+        sqlx::query_as("SELECT name, plate_scan FROM tenants WHERE id = ?1")
+            .bind(user.tenant_id)
+            .fetch_one(&state.db)
+            .await?;
     Ok(Json(CurrentPark {
         tenant_id: user.tenant_id,
         tenant_name,
         is_home: user.tenant_id == user.home_tenant_id,
+        plate_scan,
     }))
 }

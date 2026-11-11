@@ -13,4 +13,6 @@ pub struct Tenant {
     // Otoparkın sitesinin alan adı (bkz. migration 0003, site.rs).
     pub domain: Option<String>,
     pub active: bool,
+    // Telefonda plaka okuma açık mı (bkz. migration 0005).
+    pub plate_scan: bool,
 }
