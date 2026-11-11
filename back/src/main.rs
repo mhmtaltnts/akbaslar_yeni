@@ -121,6 +121,9 @@ async fn main() {
         // Router'a state'i bildiriyoruz; State<SharedState> isteyen her
         // handler artık buna erişebilir.
         .with_state(state)
+        // Token'daki rol/otopark bilgisi eskidiyse yanıta `X-Auth-Stale`
+        // ekler (bkz. middleware/auth_stale.rs).
+        .layer(axum::middleware::from_fn(middleware::auth_stale))
         // CORS, Express'teki `app.use(cors(corsOptions))` ile aynı yerde:
         // her isteğe uygulanan bir ara katman (middleware yerine Axum'da
         // buna "layer" deniyor, Tower ekosisteminden geliyor).

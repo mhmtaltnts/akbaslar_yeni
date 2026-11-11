@@ -1,9 +1,9 @@
 use axum::{extract::FromRequestParts, http::request::Parts};
 use serde::Serialize;
-use sqlx::SqlitePool;
+use sqlx::{types::Json as SqlJson, SqlitePool};
 use uuid::Uuid;
 
-use crate::{error::AppError, jwt, roles, site, state::SharedState};
+use crate::{error::AppError, jwt, middleware::AuthStale, roles, site, state::SharedState};
 
 // middleware/verifyJWT.js'nin karşılığı -- ama bir "middleware" DEĞİL, bir
 // "extractor". Node'da verifyJWT, router'a `router.use(verifyJWT)` ile
@@ -33,7 +33,7 @@ pub struct AuthUser {
     // açıldıysa ve kullanıcı orada çalışmaya yetkiliyse o otopark (bkz.
     // site.rs). SüperAdmin ayrıca `X-Park-Id` başlığıyla seçebilir.
     pub tenant_id: Uuid,
-    // Kullanıcının kayıtlı olduğu otopark (token'dan). SüperAdmin başka bir
+    // Kullanıcının kayıtlı olduğu otopark (DB.den). SüperAdmin başka bir
     // park seçmiş olsa bile değişmez.
     pub home_tenant_id: Uuid,
 }
@@ -167,13 +167,50 @@ impl FromRequestParts<SharedState> for AuthUser {
         let claims = jwt::decode_access_token(token, &state.access_token_secret)
             .map_err(|_| AppError::Forbidden("Erişim Engeli Var".to_string()))?;
 
+        // Token sadece KİMLİĞİ kanıtlıyor; rol, otopark ve aktiflik her
+        // istekte DB'den okunur. Böylece rol değişikliği (örn. SüperAdmin
+        // yetkisinin geri alınması), pasif etme ve silme 15 dakikalık access
+        // token süresini beklemeden ANINDA geçerli olur. 403: istemci refresh
+        // dener; pasif/silinmiş kullanıcının refresh'i de reddedilir ve oturum
+        // kapanır.
+        let current: Option<(String, String, SqlJson<Vec<String>>, Uuid, String)> = sqlx::query_as(
+            "SELECT u.username, u.fullname, u.roles, u.tenant_id, t.name FROM users u
+             JOIN tenants t ON t.id = u.tenant_id
+             WHERE u.id = ?1 AND u.active AND t.active",
+        )
+        .bind(claims.user_info.id)
+        .fetch_optional(&state.db)
+        .await?;
+        let (username, fullname, SqlJson(roles), home_tenant_id, tenant_name) =
+            current.ok_or_else(|| AppError::Forbidden("Erişim Engeli Var".to_string()))?;
+
+        // Token'daki bilgi eskidiyse istemciye haber ver: yanıtta
+        // `X-Auth-Stale` görünce token'ı yenileyip menüleri yeni rollere göre
+        // çizer. (Kullanıcı adı karşılaştırılmıyor: refresh token kullanıcı
+        // adına bağlı, değişmişse oturum zaten refresh'te kapanır.)
+        let same_roles = {
+            let mut a = roles.clone();
+            let mut b = claims.user_info.roles.clone();
+            a.sort();
+            b.sort();
+            a == b
+        };
+        if !same_roles
+            || claims.user_info.tenant_id != home_tenant_id
+            || claims.user_info.tenant_name != tenant_name
+        {
+            if let Some(flag) = parts.extensions.get::<AuthStale>() {
+                flag.mark();
+            }
+        }
+
         let mut user = AuthUser {
             id: claims.user_info.id,
-            username: claims.user_info.username,
-            fullname: claims.user_info.fullname,
-            roles: claims.user_info.roles,
-            tenant_id: claims.user_info.tenant_id,
-            home_tenant_id: claims.user_info.tenant_id,
+            username,
+            fullname,
+            roles,
+            tenant_id: home_tenant_id,
+            home_tenant_id,
         };
 
         // SüperAdmin tüm otoparkların verisine erişebilir: `X-Park-Id`

@@ -19,7 +19,7 @@ pub fn build_cors_layer() -> CorsLayer {
         .allow_headers(AllowHeaders::mirror_request())
         // Excel indirmesinde dosya adını tarayıcıdaki JS okuyabilsin (site ve
         // API farklı adreslerdeyse varsayılan olarak gizli).
-        .expose_headers([header::CONTENT_DISPOSITION])
+        .expose_headers([header::CONTENT_DISPOSITION, crate::middleware::AUTH_STALE_HEADER])
         // `move` burada önemli: closure, `origins` vektörünün SAHİPLİĞİNİ
         // alıyor (JS'teki closure'lar referansla yakalar ve GC bunu yönetir;
         // Rust'ta GC yok, bu yüzden closure'ın neyi ne kadar süre
