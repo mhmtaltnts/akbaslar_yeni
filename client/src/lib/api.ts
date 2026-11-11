@@ -63,6 +63,29 @@ export function refreshAccessToken(): Promise<string | null> {
   return refreshing;
 }
 
+// Rol değişikliği anında yansısın: backend, token'daki rol/otopark bilgisi
+// DB'deki güncel halinden farklıysa yanıta `X-Auth-Stale` ekler. Görünce
+// token'ı arka planda yenileriz (yeni token DB'den imzalanır); `useAuth`
+// token'a abone olduğu için menüler hemen yeni rollere göre çizilir.
+// `onAuthChanged` dinleyicileri (bkz. router.tsx) önbelleği tazeler.
+const authChangeListeners = new Set<() => void>();
+export function onAuthChanged(listener: () => void) {
+  authChangeListeners.add(listener);
+  return () => authChangeListeners.delete(listener);
+}
+
+let staleRefresh: Promise<void> | null = null;
+function checkStale(res: Response, sentWith: string | null) {
+  if (!res.headers.get("X-Auth-Stale") || !sentWith || getToken() !== sentWith) return;
+  staleRefresh ??= refreshAccessToken()
+    .then((fresh) => {
+      if (fresh) authChangeListeners.forEach((l) => l());
+    })
+    .finally(() => {
+      staleRefresh = null;
+    });
+}
+
 // Backend süresi dolmuş/geçersiz access token'da 403 döner: bir kez yenileyip
 // isteği tekrarla (eski `baseQueryWithReauth` karşılığı).
 export async function apiFetch<T>(path: string, options: Options = {}): Promise<T> {
@@ -76,6 +99,7 @@ export async function apiFetch<T>(path: string, options: Options = {}): Promise<
     const fresh = getToken() !== sentWith ? getToken() : await refreshAccessToken();
     if (fresh) res = await rawFetch(path, options);
   }
+  checkStale(res, getToken());
   return parse<T>(res);
 }
 
@@ -89,6 +113,7 @@ export async function apiDownload(path: string): Promise<{ blob: Blob; filename?
     const fresh = getToken() !== sentWith ? getToken() : await refreshAccessToken();
     if (fresh) res = await rawFetch(path, {});
   }
+  checkStale(res, getToken());
   if (!res.ok) await parse(res); // hata mesajını ApiError olarak fırlatır
   const cd = res.headers.get("Content-Disposition") ?? "";
   const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(cd)?.[1];

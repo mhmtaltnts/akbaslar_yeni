@@ -10,6 +10,11 @@ export const meQuery = queryOptions({
   queryKey: ["me"],
   queryFn: () => apiFetch<CurrentPark>("/auth/me"),
   staleTime: 5 * 60_000,
+  // Kullanıcı hiçbir şey yapmadan beklerken de rol değişikliği gelsin: bu
+  // istek yanıtındaki `X-Auth-Stale` token'ı yeniler (bkz. lib/api.ts).
+  // Sekme arka plandayken durur, sekmeye dönünce hemen tekrar sorulur.
+  refetchInterval: 15_000,
+  refetchOnWindowFocus: "always",
 });
 
 export const useLogin = () =>
