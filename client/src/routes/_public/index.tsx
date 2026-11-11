@@ -1,9 +1,10 @@
 import Slider from "@/components/Slider/Slider";
 import { Button } from "@/components/ui/button";
+import { mapsDirectionsUrl, mapsSearchUrl } from "@/lib/maps";
 import { useSiteBrand } from "@/utils/hooks/useSite";
 import useTitle from "@/utils/hooks/useTitle";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Clock, FileCheck2, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, Clock, FileCheck2, MapPin, Navigation, ShieldCheck, Truck } from "lucide-react";
 
 export const Route = createFileRoute("/_public/")({
   component: Public,
@@ -82,6 +83,47 @@ function Public() {
           ))}
         </div>
       </section>
+
+      <ParkLocation />
     </>
+  );
+}
+
+// Sitenin açıldığı alan adının otoparkının adresi ve Google Haritalar
+// bağlantıları (akbaslartirparki.com -> Gebze Konak, muallimkoykonak.com ->
+// Muallimköy). Alan adı bir otoparka bağlı değilse (IP ile erişim) ya da
+// otoparkın adresi girilmemişse bölüm görünmez.
+function ParkLocation() {
+  const { site } = useSiteBrand();
+  const address = site?.address?.trim();
+  if (!site || !address) return null;
+
+  return (
+    <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6">
+      <h2 className="mb-4 text-xl font-semibold">Konum</h2>
+      <div className="bg-card flex max-w-xl flex-col gap-4 rounded-xl border p-6 shadow-xs">
+        <div className="flex items-start gap-3">
+          <div className="bg-primary/10 text-primary flex size-11 shrink-0 items-center justify-center rounded-lg">
+            <MapPin className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold">{site.name}</h3>
+            <address className="text-muted-foreground mt-1 text-sm not-italic">{address}</address>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild>
+            <a href={mapsDirectionsUrl(site.name, address)} target="_blank" rel="noopener noreferrer">
+              <Navigation /> Yol tarifi
+            </a>
+          </Button>
+          <Button asChild variant="outline">
+            <a href={mapsSearchUrl(site.name, address)} target="_blank" rel="noopener noreferrer">
+              <MapPin /> Haritada gör
+            </a>
+          </Button>
+        </div>
+      </div>
+    </section>
   );
 }

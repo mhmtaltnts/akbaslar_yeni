@@ -1,13 +1,12 @@
 import { MapPin } from "lucide-react";
+import { mapsSearchUrl } from "@/lib/maps";
 import { useSiteBrand } from "@/utils/hooks/useSite";
 
 // Adres ve ad sitenin açıldığı alan adının otoparkından gelir (useSiteBrand).
 // Harita bağlantısı adresle Google Haritalar'da arama yapar.
 const PublicFooter = () => {
   const { name, address } = useSiteBrand();
-  const mapsUrl = address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${address}`)}`
-    : null;
+  const mapsUrl = address ? mapsSearchUrl(name, address) : null;
 
   return (
     <footer className="border-t">
