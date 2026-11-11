@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   Building2,
   ClipboardList,
+  Images,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -34,7 +35,7 @@ type NavItem = {
 };
 
 function useNavItems(): NavItem[] {
-  const { roles, isSuperAdmin } = useAuth();
+  const { roles, isAdmin, isSuperAdmin } = useAuth();
   const ability = defineAbilityFor(roles);
   return [
     { to: "/dashboard", label: "Genel Bakış", icon: LayoutDashboard, exact: true, show: true },
@@ -47,6 +48,8 @@ function useNavItems(): NavItem[] {
     },
     { to: "/dashboard/rapor", label: "Rapor", icon: ClipboardList, show: ability.can("read", "rapor") },
     { to: "/dashboard/users", label: "Kullanıcılar", icon: Users, show: ability.can("read", "users") },
+    // Ana sayfa slaytının fotoğrafları: Kurucu kendi otoparkına ekler.
+    { to: "/dashboard/photos", label: "Fotoğraflar", icon: Images, show: isAdmin || isSuperAdmin },
     { to: "/dashboard/parks", label: "Otoparklar", icon: Building2, show: isSuperAdmin },
   ].filter((i) => i.show);
 }

@@ -2,6 +2,9 @@ import { getActivePark, getToken, setToken } from "./auth";
 
 const BASE_URL = import.meta.env.VITE_API_URL as string;
 
+// API'deki bir adresin tam URL'si (örn. <img src> için).
+export const apiUrl = (path: string) => BASE_URL + path;
+
 // Hata şekli eski RTK Query hatalarıyla aynı ({ status, data: { message } }),
 // böylece `apiErrorMessage` ve 404 kontrolleri değişmeden çalışır.
 export class ApiError extends Error {
@@ -18,7 +21,9 @@ type Options = { method?: string; body?: unknown; auth?: boolean };
 
 async function rawFetch(path: string, { method = "GET", body }: Options) {
   const headers: Record<string, string> = {};
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  // Blob (örn. fotoğraf) olduğu gibi, kendi türüyle; diğerleri JSON.
+  const isBlob = body instanceof Blob;
+  if (body !== undefined) headers["Content-Type"] = isBlob ? body.type || "application/octet-stream" : "application/json";
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   // SüperAdmin'in park seçimi (bkz. lib/auth.ts); diğer rollerde backend yok sayar.
@@ -29,7 +34,7 @@ async function rawFetch(path: string, { method = "GET", body }: Options) {
       method,
       headers,
       credentials: "include", // refresh cookie
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isBlob ? body : JSON.stringify(body),
     });
   } catch {
     throw new ApiError("FETCH_ERROR", { message: "Sunucuya ulaşılamıyor" });

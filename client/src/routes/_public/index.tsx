@@ -1,8 +1,10 @@
+import { publicPhotosQuery } from "@/api/photos";
 import Slider from "@/components/Slider/Slider";
 import { Button } from "@/components/ui/button";
 import { mapsDirectionsUrl, mapsSearchUrl } from "@/lib/maps";
 import { useSiteBrand } from "@/utils/hooks/useSite";
 import useTitle from "@/utils/hooks/useTitle";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Clock, FileCheck2, MapPin, Navigation, ShieldCheck, Truck } from "lucide-react";
 
@@ -29,8 +31,11 @@ const FEATURES = [
 ];
 
 function Public() {
-  const { name } = useSiteBrand();
+  const { name, site } = useSiteBrand();
   useTitle(name);
+  // Slayt: alan adının otoparkının fotoğrafları (Kurucu panelden ekler);
+  // yoksa varsayılan görseller.
+  const { data: photos } = useQuery({ ...publicPhotosQuery(site?.slug ?? ""), enabled: Boolean(site) });
 
   return (
     <>
@@ -66,7 +71,7 @@ function Public() {
             </div>
           </div>
 
-          <Slider className="aspect-[4/3] w-full shadow-2xl ring-1 ring-black/5" />
+          <Slider className="aspect-[4/3] w-full shadow-2xl ring-1 ring-black/5" images={photos?.map((p) => p.url)} />
         </div>
       </section>
 

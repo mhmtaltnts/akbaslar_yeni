@@ -19,6 +19,7 @@ import { Route as authLoginRouteImport } from './routes/(auth)/login'
 import { Route as authForgotPasswordRouteImport } from './routes/(auth)/forgot-password'
 import { Route as DashboardUsersIndexRouteImport } from './routes/dashboard/users/index'
 import { Route as DashboardRaporIndexRouteImport } from './routes/dashboard/rapor/index'
+import { Route as DashboardPhotosIndexRouteImport } from './routes/dashboard/photos/index'
 import { Route as DashboardParksIndexRouteImport } from './routes/dashboard/parks/index'
 import { Route as DashboardNotesIndexRouteImport } from './routes/dashboard/notes/index'
 import { Route as DashboardUsersNewRouteImport } from './routes/dashboard/users/new'
@@ -77,6 +78,11 @@ const DashboardUsersIndexRoute = DashboardUsersIndexRouteImport.update({
 const DashboardRaporIndexRoute = DashboardRaporIndexRouteImport.update({
   id: '/rapor/',
   path: '/rapor/',
+  getParentRoute: () => DashboardRouteRoute,
+} as any)
+const DashboardPhotosIndexRoute = DashboardPhotosIndexRouteImport.update({
+  id: '/photos/',
+  path: '/photos/',
   getParentRoute: () => DashboardRouteRoute,
 } as any)
 const DashboardParksIndexRoute = DashboardParksIndexRouteImport.update({
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/users/new': typeof DashboardUsersNewRoute
   '/dashboard/notes/': typeof DashboardNotesIndexRoute
   '/dashboard/parks/': typeof DashboardParksIndexRoute
+  '/dashboard/photos/': typeof DashboardPhotosIndexRoute
   '/dashboard/rapor/': typeof DashboardRaporIndexRoute
   '/dashboard/users/': typeof DashboardUsersIndexRoute
   '/dashboard/notes/$noteId/cikis': typeof DashboardNotesNoteIdCikisRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/dashboard/users/new': typeof DashboardUsersNewRoute
   '/dashboard/notes': typeof DashboardNotesIndexRoute
   '/dashboard/parks': typeof DashboardParksIndexRoute
+  '/dashboard/photos': typeof DashboardPhotosIndexRoute
   '/dashboard/rapor': typeof DashboardRaporIndexRoute
   '/dashboard/users': typeof DashboardUsersIndexRoute
   '/dashboard/notes/$noteId/cikis': typeof DashboardNotesNoteIdCikisRoute
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/dashboard/users/new': typeof DashboardUsersNewRoute
   '/dashboard/notes/': typeof DashboardNotesIndexRoute
   '/dashboard/parks/': typeof DashboardParksIndexRoute
+  '/dashboard/photos/': typeof DashboardPhotosIndexRoute
   '/dashboard/rapor/': typeof DashboardRaporIndexRoute
   '/dashboard/users/': typeof DashboardUsersIndexRoute
   '/dashboard/notes/$noteId/cikis': typeof DashboardNotesNoteIdCikisRoute
@@ -214,6 +223,7 @@ export interface FileRouteTypes {
     | '/dashboard/users/new'
     | '/dashboard/notes/'
     | '/dashboard/parks/'
+    | '/dashboard/photos/'
     | '/dashboard/rapor/'
     | '/dashboard/users/'
     | '/dashboard/notes/$noteId/cikis'
@@ -234,6 +244,7 @@ export interface FileRouteTypes {
     | '/dashboard/users/new'
     | '/dashboard/notes'
     | '/dashboard/parks'
+    | '/dashboard/photos'
     | '/dashboard/rapor'
     | '/dashboard/users'
     | '/dashboard/notes/$noteId/cikis'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/dashboard/users/new'
     | '/dashboard/notes/'
     | '/dashboard/parks/'
+    | '/dashboard/photos/'
     | '/dashboard/rapor/'
     | '/dashboard/users/'
     | '/dashboard/notes/$noteId/cikis'
@@ -344,6 +356,13 @@ declare module '@tanstack/react-router' {
       path: '/rapor'
       fullPath: '/dashboard/rapor/'
       preLoaderRoute: typeof DashboardRaporIndexRouteImport
+      parentRoute: typeof DashboardRouteRoute
+    }
+    '/dashboard/photos/': {
+      id: '/dashboard/photos/'
+      path: '/photos'
+      fullPath: '/dashboard/photos/'
+      preLoaderRoute: typeof DashboardPhotosIndexRouteImport
       parentRoute: typeof DashboardRouteRoute
     }
     '/dashboard/parks/': {
@@ -439,6 +458,7 @@ interface DashboardRouteRouteChildren {
   DashboardUsersNewRoute: typeof DashboardUsersNewRoute
   DashboardNotesIndexRoute: typeof DashboardNotesIndexRoute
   DashboardParksIndexRoute: typeof DashboardParksIndexRoute
+  DashboardPhotosIndexRoute: typeof DashboardPhotosIndexRoute
   DashboardRaporIndexRoute: typeof DashboardRaporIndexRoute
   DashboardUsersIndexRoute: typeof DashboardUsersIndexRoute
   DashboardNotesNoteIdCikisRoute: typeof DashboardNotesNoteIdCikisRoute
@@ -455,6 +475,7 @@ const DashboardRouteRouteChildren: DashboardRouteRouteChildren = {
   DashboardUsersNewRoute: DashboardUsersNewRoute,
   DashboardNotesIndexRoute: DashboardNotesIndexRoute,
   DashboardParksIndexRoute: DashboardParksIndexRoute,
+  DashboardPhotosIndexRoute: DashboardPhotosIndexRoute,
   DashboardRaporIndexRoute: DashboardRaporIndexRoute,
   DashboardUsersIndexRoute: DashboardUsersIndexRoute,
   DashboardNotesNoteIdCikisRoute: DashboardNotesNoteIdCikisRoute,
