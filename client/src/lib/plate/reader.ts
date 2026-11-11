@@ -9,7 +9,7 @@
 // Ön/son işlem, modellerin Python kütüphanelerindeki (open-image-models,
 // fast-plate-ocr) kodun birebir karşılığı; bkz. models/README.md.
 import * as ort from "onnxruntime-web/wasm";
-import mjsUrl from "../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs?url";
+import loaderSource from "../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs?raw";
 import wasmUrl from "../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm?url";
 import detectorUrl from "./models/plate-detector-yolo-v9-t-384.onnx?url";
 import ocrUrl from "./models/plate-ocr-cct-xs-v2-global.onnx?url";
@@ -58,13 +58,16 @@ let loading: Promise<Sessions> | null = null;
 // kullanır. Yükleme başarısız olursa bir sonraki denemede tekrar denenir.
 export function loadPlateReader(): Promise<Sessions> {
   loading ??= (async () => {
-    // Motorun yükleyicisi ve WASM'ı: hash'li adlarla kendi sunucumuzdan.
-    ort.env.wasm.wasmPaths = { mjs: mjsUrl, wasm: wasmUrl };
-    // Çok iş parçacığı sayfanın "cross-origin isolated" olmasını ister; değilse
-    // tek iş parçacığı (motor bunu kendisi de yapar, uyarı basmasın).
-    ort.env.wasm.numThreads = globalThis.crossOriginIsolated
-      ? Math.min(4, navigator.hardwareConcurrency || 1)
-      : 1;
+    // WASM: hash'li adla kendi sunucumuzdan. Motorun yükleyicisi (.mjs) ise
+    // ayrı dosya olarak VERİLMEZ: nginx'in varsayılan mime.types'ı .mjs'i
+    // application/octet-stream gönderiyor ve tarayıcı modülü reddediyor
+    // (179'da yaşandı). Kodu pakete metin olarak gömüp bellekten yüklüyoruz;
+    // sunucu ayarından bağımsız.
+    const loaderUrl = URL.createObjectURL(new Blob([loaderSource], { type: "text/javascript" }));
+    ort.env.wasm.wasmPaths = { mjs: loaderUrl, wasm: wasmUrl };
+    // Tek iş parçacığı: çoklu iş parçacığı sayfanın "cross-origin isolated"
+    // olmasını ve yükleyicinin gerçek bir adresten gelmesini ister.
+    ort.env.wasm.numThreads = 1;
     const opts: ort.InferenceSession.SessionOptions = {
       executionProviders: ["wasm"],
       graphOptimizationLevel: "all",
