@@ -7,7 +7,6 @@ pub fn tenant_routes() -> Router<SharedState> {
     Router::new().route(
         "/",
         get(handlers::get_all_tenants)
-            .post(handlers::create_tenant)
             .patch(handlers::update_tenant),
     )
     .route(

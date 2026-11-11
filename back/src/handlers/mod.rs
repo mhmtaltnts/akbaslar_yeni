@@ -15,5 +15,5 @@ pub use notes::{create_note, delete_note, get_all_notes, update_note};
 pub use rapor::{export_rapor, rapor, update_rapor};
 pub use public::{get_public_notes, get_public_parks, get_public_site};
 pub use root::index;
-pub use tenants::{create_tenant, get_all_tenants, get_officers, get_staff, set_officer_parks, update_tenant};
+pub use tenants::{get_all_tenants, get_officers, get_staff, set_officer_parks, update_tenant};
 pub use users::{create_user, delete_user, get_all_users, update_user};

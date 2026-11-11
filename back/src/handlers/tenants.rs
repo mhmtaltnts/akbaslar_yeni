@@ -1,4 +1,4 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -9,7 +9,7 @@ use sqlx::types::Json as SqlJson;
 use crate::{
     error::AppError,
     extractors::AuthUser,
-    models::{username_key, Tenant},
+    models::Tenant,
     response::MessageBody,
     roles, site,
     state::SharedState,
@@ -79,109 +79,6 @@ pub async fn get_all_tenants(
 }
 
 #[derive(Deserialize)]
-pub struct AdminPayload {
-    pub fullname: String,
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Deserialize)]
-pub struct CreateTenantPayload {
-    pub name: String,
-    pub slug: String,
-    pub address: Option<String>,
-    #[serde(default)]
-    pub domain: Option<String>,
-    // Yeni otoparkın ilk kullanıcısı ("Kurucu" rolüyle). Bu olmadan yeni
-    // otoparka kimse giriş yapıp personel ekleyemezdi.
-    pub admin: AdminPayload,
-}
-
-// @route POST /tenants  (SüperAdmin)
-// Otoparkı ve kurucusunu TEK bir transaction içinde oluşturur: kullanıcı
-// eklenemezse (örn. kullanıcı adı alınmışsa) kurucusuz bir otopark kalmaz.
-pub async fn create_tenant(
-    user: AuthUser,
-    State(state): State<SharedState>,
-    Json(payload): Json<CreateTenantPayload>,
-) -> Result<impl IntoResponse, AppError> {
-    user.require_super_admin()?;
-
-    let slug = normalize_slug(&payload.slug)?;
-    let admin = &payload.admin;
-    if payload.name.trim().is_empty()
-        || admin.fullname.trim().is_empty()
-        || admin.username.trim().is_empty()
-        || admin.password.is_empty()
-    {
-        return Err(AppError::BadRequest("Tüm alanları doldurun".to_string()));
-    }
-
-    let slug_taken: Option<Uuid> =
-        sqlx::query_scalar("SELECT id FROM tenants WHERE lower(slug) = ?1")
-            .bind(&slug)
-            .fetch_optional(&state.db)
-            .await?;
-    if slug_taken.is_some() {
-        return Err(AppError::Conflict("Bu otopark kodu kullanılıyor".to_string()));
-    }
-
-    let domain = normalize_domain(payload.domain.as_deref().unwrap_or(""))?;
-    if let Some(d) = &domain {
-        if domain_owner(&state.db, d).await?.is_some() {
-            return Err(AppError::Conflict("Bu alan adı başka bir otoparkta kullanılıyor".to_string()));
-        }
-    }
-
-    let username_taken: Option<Uuid> =
-        sqlx::query_scalar("SELECT id FROM users WHERE username_key = ?1")
-            .bind(username_key(admin.username.trim()))
-            .fetch_optional(&state.db)
-            .await?;
-    if username_taken.is_some() {
-        return Err(AppError::Conflict("Kurucu kullanıcı adı kullanılıyor".to_string()));
-    }
-
-    let hashed = bcrypt::hash(&admin.password, bcrypt::DEFAULT_COST)
-        .map_err(|err| AppError::Internal(format!("şifre hashlenemedi: {err}")))?;
-
-    // `tx` drop edildiğinde commit edilmemişse otomatik ROLLBACK olur --
-    // aradaki herhangi bir `?` erken dönüşü transaction'ı güvenle geri alır.
-    let mut tx = state.db.begin().await?;
-
-    let tenant_id = Uuid::new_v4();
-    sqlx::query("INSERT INTO tenants (id, name, slug, address, domain) VALUES (?1, ?2, ?3, ?4, ?5)")
-    .bind(tenant_id)
-    .bind(payload.name.trim())
-    .bind(&slug)
-    .bind(payload.address.as_deref().map(str::trim).filter(|a| !a.is_empty()))
-    .bind(&domain)
-    .execute(&mut *tx)
-    .await?;
-
-    sqlx::query(
-        "INSERT INTO users (id, fullname, username, username_key, password, roles, tenant_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-    )
-    .bind(Uuid::new_v4())
-    .bind(admin.fullname.trim())
-    .bind(admin.username.trim())
-    .bind(username_key(admin.username.trim()))
-    .bind(&hashed)
-    .bind(SqlJson(vec![roles::ADMIN]))
-    .bind(tenant_id)
-    .execute(&mut *tx)
-    .await?;
-
-    tx.commit().await?;
-
-    Ok((
-        StatusCode::CREATED,
-        Json(MessageBody::new(format!("{} otoparkı oluşturuldu", payload.name.trim()))),
-    ))
-}
-
-#[derive(Deserialize)]
 pub struct UpdateTenantPayload {
     pub id: Uuid,
     pub name: String,
@@ -191,12 +88,12 @@ pub struct UpdateTenantPayload {
     // bir istemci alanı göndermediği için alan adını yanlışlıkla silmesin.
     #[serde(default)]
     pub domain: Option<String>,
-    pub active: bool,
 }
 
 // @route PATCH /tenants  (SüperAdmin)
-// `active = false` otoparkı askıya alır: kullanıcıları giriş yapamaz,
-// refresh token'ları yeni access token alamaz, herkese açık listede görünmez.
+// Uygulama iki sabit otoparklı: otopark oluşturma ve askıya alma yok, burada
+// sadece ad, kod, adres ve alan adı değişir. (Eski istemcinin gönderdiği
+// `active` alanı yok sayılır.)
 pub async fn update_tenant(
     user: AuthUser,
     State(state): State<SharedState>,
@@ -207,13 +104,6 @@ pub async fn update_tenant(
     let slug = normalize_slug(&payload.slug)?;
     if payload.name.trim().is_empty() {
         return Err(AppError::BadRequest("Otopark adı boş olamaz".to_string()));
-    }
-
-    // SüperAdmin'in kendi otoparkını askıya alması kendini sistemden kilitler.
-    if !payload.active && payload.id == user.home_tenant_id {
-        return Err(AppError::BadRequest(
-            "Kendi otoparkınızı askıya alamazsınız".to_string(),
-        ));
     }
 
     let slug_owner: Option<Uuid> =
@@ -243,14 +133,13 @@ pub async fn update_tenant(
     };
 
     let result = sqlx::query(
-        "UPDATE tenants SET name = ?1, slug = ?2, address = ?3, active = ?4,
-                domain = CASE WHEN ?6 THEN ?7 ELSE domain END
-         WHERE id = ?5",
+        "UPDATE tenants SET name = ?1, slug = ?2, address = ?3,
+                domain = CASE WHEN ?5 THEN ?6 ELSE domain END
+         WHERE id = ?4",
     )
     .bind(payload.name.trim())
     .bind(&slug)
     .bind(payload.address.as_deref().map(str::trim).filter(|a| !a.is_empty()))
-    .bind(payload.active)
     .bind(payload.id)
     .bind(domain_change.is_some())
     .bind(domain_change.flatten())
