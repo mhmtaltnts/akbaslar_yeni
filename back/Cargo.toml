@@ -1,0 +1,29 @@
+[package]
+name = "akbaslar_backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.9"
+axum-extra = { version = "0.12.6", features = ["cookie"] }
+bcrypt = "0.19.3"
+chrono = "0.4.45"
+dotenvy = "0.15.7"
+jsonwebtoken = { version = "11.1.0", default-features = false, features = ["rust_crypto"] }
+rust_xlsxwriter = { version = "0.102", features = ["chrono"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "uuid", "json", "macros", "migrate"] }
+time = "0.3.55"
+tokio = { version = "1.54.1", features = ["full"] }
+tower-http = { version = "0.7.1", features = ["cors", "fs"] }
+tracing = "0.1.44"
+tracing-subscriber = "0.3.23"
+uuid = { version = "1.29.1", features = ["v4", "serde"] }
+
+# SQLite'ın C kodu (libsqlite3-sys) geliştirme derlemesinde de optimize
+# derlensin: aksi halde `-O0` ile derlenen SQLite, rapor araması gibi tüm
+# tabloyu tarayan sorgularda birkaç kat yavaş kalıyor. Kendi kodumuz debug
+# kalır (hızlı derleme, hata ayıklama bilgisi).
+[profile.dev.package.libsqlite3-sys]
+opt-level = 3

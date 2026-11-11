@@ -1,0 +1,11 @@
+# SQLite veritabanının günlük yedeği (çalışan backend'i durdurmadan, tutarlı
+# kopya: sqlite3 .backup). Son 14 gün saklanır.
+[Unit]
+Description=Tır Parkı veritabanı yedeği
+
+[Service]
+Type=oneshot
+User=park
+Group=park
+UMask=0027
+ExecStart=/bin/sh -c 'mkdir -p /opt/park/back/data/backups && sqlite3 /opt/park/back/data/akbaslar.db ".backup /opt/park/back/data/backups/akbaslar-$(date +%%F).db" && find /opt/park/back/data/backups -name "akbaslar-*.db" -mtime +14 -delete'

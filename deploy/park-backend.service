@@ -1,0 +1,26 @@
+# Backend (Rust/Axum + SQLite) systemd servisi. Kurulum: deploy/server-setup.sh
+[Unit]
+Description=Tır Parkı backend (akbaslar_backend)
+After=network.target
+
+[Service]
+Type=simple
+User=park
+Group=park
+WorkingDirectory=/opt/park/back
+# .env'yi backend kendisi okuyor (dotenvy); burada ayrıca vermeye gerek yok.
+ExecStart=/opt/park/back/akbaslar_backend
+Restart=always
+# Oluşan dosyalar (veritabanı, WAL, loglar) başka kullanıcılarca okunamasın.
+UMask=0027
+RestartSec=3
+
+# Sertleştirme: servis sadece veri ve log klasörlerine yazabilir.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/park/back/data /opt/park/back/logs
+
+[Install]
+WantedBy=multi-user.target

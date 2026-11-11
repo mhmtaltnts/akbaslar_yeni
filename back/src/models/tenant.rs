@@ -1,0 +1,18 @@
+use serde::Serialize;
+use uuid::Uuid;
+
+// Bir otopark işletmesi (tenant). Bkz. migration 0003.
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct Tenant {
+    #[serde(rename = "_id")]
+    pub id: Uuid,
+    pub name: String,
+    pub slug: String,
+    pub address: Option<String>,
+    // Otoparkın sitesinin alan adı (bkz. migration 0003, site.rs).
+    pub domain: Option<String>,
+    pub active: bool,
+    // Telefonda plaka okuma açık mı (bkz. migration 0005).
+    pub plate_scan: bool,
+}
