@@ -190,6 +190,18 @@ pub async fn update_user(
 
     let new_roles = sanitize_roles(payload.roles, &user, target_had_super);
 
+    // SüperAdmin rolünü sadece başka bir SüperAdmin kaldırabilir: kendi
+    // yetkisini kaldıran (ya da kendini pasif eden) son SüperAdmin, kimsenin
+    // otoparkları ve SüperAdmin atamasını yönetemediği bir sistem bırakırdı.
+    if payload.id == user.id
+        && target_had_super
+        && (!new_roles.iter().any(|r| r == roles::SUPER_ADMIN) || !payload.active)
+    {
+        return Err(AppError::BadRequest(
+            "Kendi SüperAdmin yetkinizi kaldıramaz ve hesabınızı pasif edemezsiniz".to_string(),
+        ));
+    }
+
     // DİKKAT: `fullname` burada da KASITLI OLARAK güncellenmiyor -- Node'daki
     // `user.fullName = fullName` satırının no-op olmasıyla aynı.
     match payload.password.filter(|p| !p.is_empty()) {
